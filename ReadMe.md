@@ -1,3 +1,5 @@
-# If CV2 can't open on ubuntu wayland:
+# LOTUS-PTO: Basler ace 2 python controller
 
-export QT_QPA_PLATFORM=xcb
+## If CV2 can't open on ubuntu wayland:
+
+```export QT_QPA_PLATFORM=xcb```
