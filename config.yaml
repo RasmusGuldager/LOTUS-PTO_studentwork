@@ -1,0 +1,32 @@
+image_settings:
+  width: 1920                   # Maks er 3548
+  height: 1080                  # Maks er 3552
+  offset_x: 814 
+  offset_y: 1236
+  pixel_format: "blank"
+
+
+
+video_settings:
+  enable_acquisition: "on"     # off or on
+  acquisition_fps: 30
+
+
+
+lighting_settings:
+  exposure_time: 15000.0        # mikrosekunder 
+  gain: 1.0
+
+
+
+auto_settings:
+  auto_brightness_target: 0.5   # Mellem 0.0 og 1.0
+  auto_function: "min_gain"     # "min_gain", eller "min_exposure"
+
+  auto_exposure: "continuous"   # off, once, continuous
+  auto_exposure_lower_limit: 1.0
+  auto_exposure_upper_limit: 100000.0
+
+  auto_gain: "continuous"       # off, once, continuous
+  auto_gain_lower_limit: 0
+  auto_gain_upper_limit: 24
