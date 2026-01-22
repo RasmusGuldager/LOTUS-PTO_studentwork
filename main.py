@@ -1,5 +1,5 @@
 from pypylon import pylon
-import cv2
+import cv2, time
 
 from config_loader import load_config
 
@@ -8,7 +8,6 @@ class camera_control:
     def __init__(self):
         self.camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
         self.camera.Open()
-        load_config(self.camera)
         self.check_for_input()
 
 
@@ -17,10 +16,26 @@ class camera_control:
 
         while self.camera.IsGrabbing():
             grabResult = self.camera.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
+
             if grabResult.GrabSucceeded():
-                # Access the image data.
                 img = grabResult.Array
-                print("Gray value of first pixel: ", img[0, 0])
+                
+                while True:
+                    user_input = input("Press s to save the image, v to view or q to quit: ")
+
+                    if user_input == 's':
+                        timestamp = time.strftime("%Y%m%d-%H%M%S")
+                        filename = f"image_{timestamp}.png"
+                        cv2.imwrite(f'{filename}', img)
+                        print(f"Image saved as {filename}")
+                    elif user_input == 'v':
+                        cv2.imshow('Captured Image', img)
+                        cv2.waitKey(0)
+                        cv2.destroyAllWindows()
+                    elif user_input == 'q':
+                        break
+                    else:
+                        print("Invalid input. Please try again.")
 
             grabResult.Release()
         self.camera.Close()
@@ -57,6 +72,10 @@ class camera_control:
         self.camera.StopGrabbing()
 
         cv2.destroyAllWindows()
+
+
+    def update_settings(self):
+        load_config(self.camera)
 
     
     def check_for_input(self):

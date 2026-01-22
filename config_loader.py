@@ -11,6 +11,7 @@ def load_config(camera):
     auto_settings = config['auto_settings']
 
 
+    # Image settings
     camera.Width.Value = image_settings['width']
     camera.Height.Value = image_settings['height']
     camera.OffsetX.Value = image_settings['offset_x']
@@ -21,6 +22,7 @@ def load_config(camera):
     camera.Gain.Value = lighting_settings['gain']
 
 
+    # Video settings
     if video_settings['enable_acquisition'] == "on":
         camera.AcquisitionFrameRateEnable.Value = True
         camera.AcquisitionFrameRate.Value = video_settings['acquisition_fps']
@@ -30,6 +32,7 @@ def load_config(camera):
         raise ValueError("Invalid enable_acquisition value in config.yaml")
 
 
+    # Auto settings
     camera.AutoTargetBrightness.Value = auto_settings['auto_brightness_target']
 
 
@@ -65,3 +68,63 @@ def load_config(camera):
 
     camera.AutoGainLowerLimit.Value = auto_settings['auto_gain_lower_limit']
     camera.AutoGainUpperLimit.Value = auto_settings['auto_gain_upper_limit']
+
+
+    # Pixel format
+    if image_settings['pixel_format'] == "mono8":
+        camera.PixelFormat.Value = "Mono8"
+    elif image_settings['pixel_format'] == "mono10":
+        camera.PixelFormat.Value = "Mono10"
+    elif image_settings['pixel_format'] == "mono10p":
+        camera.PixelFormat.Value = "Mono10p"
+    elif image_settings['pixel_format'] == "mono12p":
+        camera.PixelFormat.Value = "Mono12p"
+    elif image_settings['pixel_format'] == "rgb8":
+        camera.PixelFormat.Value = "RGB8"
+    elif image_settings['pixel_format'] == "brg8":
+        camera.PixelFormat.Value = "BGR8"
+    elif image_settings['pixel_format'] == "ycbcr422":
+        camera.PixelFormat.Value = "YCbCr422"
+    elif image_settings['pixel_format'] == "bayer_gr8":
+        camera.PixelFormat.Value = "BayerGR8"
+    elif image_settings['pixel_format'] == "bayer_rg8":
+        camera.PixelFormat.Value = "BayerRG8"
+    elif image_settings['pixel_format'] == "bayer_gb8":
+        camera.PixelFormat.Value = "BayerGB8"
+    elif image_settings['pixel_format'] == "bayer_bg8":
+        camera.PixelFormat.Value = "BayerBG8"
+    elif image_settings['pixel_format'] == "bayer_gr10":
+        camera.PixelFormat.Value = "BayerGR10"
+    elif image_settings['pixel_format'] == "bayer_rg10":
+        camera.PixelFormat.Value = "BayerRG10"
+    elif image_settings['pixel_format'] == "bayer_gb10":
+        camera.PixelFormat.Value = "BayerGB10"
+    elif image_settings['pixel_format'] == "bayer_bg10":
+        camera.PixelFormat.Value = "BayerBG10"
+    elif image_settings['pixel_format'] == "bayer_gr10p":
+        camera.PixelFormat.Value = "BayerGR10p"
+    elif image_settings['pixel_format'] == "bayer_rg10p":
+        camera.PixelFormat.Value = "BayerRG10p"
+    elif image_settings['pixel_format'] == "bayer_gb10p":
+        camera.PixelFormat.Value = "BayerGB10p"
+    elif image_settings['pixel_format'] == "bayer_bg10p":
+        camera.PixelFormat.Value = "BayerBG10p"
+    elif image_settings['pixel_format'] == "bayer_gr12":
+        camera.PixelFormat.Value = "BayerGR12"
+    elif image_settings['pixel_format'] == "bayer_rg12":
+        camera.PixelFormat.Value = "BayerRG12"
+    elif image_settings['pixel_format'] == "bayer_gb12":
+        camera.PixelFormat.Value = "BayerGB12"
+    elif image_settings['pixel_format'] == "bayer_bg12":
+        camera.PixelFormat.Value = "BayerBG12"
+    elif image_settings['pixel_format'] == "bayer_gr12p":
+        camera.PixelFormat.Value = "BayerGR12p"
+    elif image_settings['pixel_format'] == "bayer_rg12p":
+        camera.PixelFormat.Value = "BayerRG12p"
+    elif image_settings['pixel_format'] == "bayer_gb12p":
+        camera.PixelFormat.Value = "BayerGB12p"
+    elif image_settings['pixel_format'] == "bayer_bg12p":
+        camera.PixelFormat.Value = "BayerBG12p"
+    else:
+        raise ValueError("Invalid pixel_format value in config.yaml")
+    

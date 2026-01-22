@@ -3,7 +3,14 @@ image_settings:
   height: 1080                  # Maks er 3552
   offset_x: 814 
   offset_y: 1236
-  pixel_format: "blank"
+  pixel_format: "bayer_rg8"
+  # Vælg mellem: mono8, mono10, mono10p, mono12p, rgb8, brg8, ycbcr422, 
+  # bayer_gr8, bayer_rg8, bayer_gb8, bayer_bg8, 
+  # bayer_gr10, bayer_rg10, bayer_gb10, bayer_bg10,
+  # bayer_gr10p, bayer_rg10p, bayer_gb10p, bayer_bg10p,
+  # bayer_gr12, bayer_rg12, bayer_gb12, bayer_bg12,
+  # bayer_gr12p, bayer_rg12p, bayer_gb12p, bayer_bg12p,
+
 
 
 
