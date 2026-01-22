@@ -1,7 +1,7 @@
 import yaml
 
 
-def load_config(camera):
+def update_settings(camera) -> None:
     with open("config.yaml", "r") as file:
         config = yaml.safe_load(file)
 
