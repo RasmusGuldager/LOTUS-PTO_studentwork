@@ -2,6 +2,13 @@ import yaml
 
 
 def config_loader(camera) -> None:
+    """
+    Loads camera configuration from 'config.yaml' and applies settings to the camera.
+
+    Args:
+        camera: The Basler camera object to configure.
+    """
+
     with open("config.yaml", "r") as file:
         config = yaml.safe_load(file)
 

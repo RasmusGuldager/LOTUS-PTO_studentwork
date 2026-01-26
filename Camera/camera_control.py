@@ -20,6 +20,17 @@ class CameraControl:
             self.run_in_thread(self.auto_pic_snapper, 5)
 
     def snap_pic(self, user: bool = False) -> None:
+        """
+        Captures a single frame from the Basler camera and saves it to disk.
+        If called by the user, prompts for saving or viewing the image.
+
+        Args:
+            user (bool): If True, saves to './User_images'. If False, saves to './Captured_images'.
+
+        Raises:
+            TimeoutException: If the camera fails to return a frame within 5000ms.
+        """
+
         with self.camera_mutex:
             self.camera.StartGrabbingMax(1)
 
@@ -59,6 +70,13 @@ class CameraControl:
         grabResult.Release()
 
     def stream(self) -> None:
+        """
+        Starts a live video stream from the Basler camera using OpenCV.
+
+        Raises:
+            TimeoutException: If the camera fails to return a frame within 5000ms.
+        """
+
         with self.camera_mutex:
             self.camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
 
@@ -112,6 +130,16 @@ class CameraControl:
         cv2.destroyAllWindows()
 
     def auto_pic_snapper(self, interval: int) -> None:
+        """
+        Automatically takes pictures at specified intervals.
+
+        Args:
+            interval (int): Time in seconds between each picture.
+
+        Raises:
+            TimeoutException: If the camera fails to return a frame within 5000ms.
+        """
+
         while True:
             self.snap_pic(user=False)
             time.sleep(interval)
