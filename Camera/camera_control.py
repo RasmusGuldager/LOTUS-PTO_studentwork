@@ -1,5 +1,5 @@
 from pypylon import pylon
-import cv2, time, threading, os
+import cv2, time, threading, os, logging
 
 from Camera.config_loader import config_loader
 
@@ -11,6 +11,8 @@ class CameraControl:
         )
         self.camera.Open()
         self.camera_mutex = threading.Lock()
+
+        self.logger = logging.getLogger(__name__)
         self.update_settings()
 
         for folder in ["./User_images", "./Captured_images"]:
@@ -52,20 +54,28 @@ class CameraControl:
                         filename = f"image_{timestamp}.png"
                         full_path = os.path.join("./User_images", filename)
                         cv2.imwrite(full_path, img)
-                        print(f"Image saved as {full_path}")
+                        self.logger.info(f"User saved image as {full_path}")
+
                     elif user_input == "v":
                         cv2.imshow("Captured Image", img)
                         cv2.waitKey(0)
                         cv2.destroyAllWindows()
+
                     elif user_input == "q":
                         break
+
                     else:
                         print("Invalid input. Please try again.")
+
             else:
                 timestamp = time.strftime("%Y%m%d-%H%M%S")
                 filename = f"image_{timestamp}.png"
                 full_path = os.path.join("./Captured_images", filename)
                 cv2.imwrite(full_path, img)
+                self.logger.info(f"Auto saved image as {full_path}")
+
+        else:
+            self.logger.error("Failed to grab image.")
 
         grabResult.Release()
 
@@ -86,6 +96,7 @@ class CameraControl:
             converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
 
             print("Live view kører... Tryk på 'q' for at afslutte.")
+            self.logger.info("Live view started.")
 
             prev_time = time.time()
 
@@ -120,7 +131,10 @@ class CameraControl:
 
                     # Stop hvis brugeren trykker på 'q'
                     if cv2.waitKey(1) & 0xFF == ord("q"):
+                        self.logger.info("Live view stopped by user.")
                         break
+                else:
+                    self.logger.error("Failed to grab image (stream).")
 
                 grabResult.Release()
 
@@ -146,6 +160,7 @@ class CameraControl:
 
     def update_settings(self) -> None:
         config_loader(self.camera)
+        self.logger.info("Camera settings updated.")
 
     @staticmethod
     def run_in_thread(func, *args) -> threading.Thread:

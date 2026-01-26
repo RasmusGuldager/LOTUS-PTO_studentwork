@@ -1,4 +1,4 @@
-import threading, argparse
+import threading, argparse, logging
 
 from Camera.camera_control import CameraControl
 from dashboard import DashboardApp
@@ -8,10 +8,26 @@ class Main:
     def __init__(self, auto=False) -> None:
         self.camera_control = CameraControl(auto=auto)
 
+        self.logger = self.logging_setup()
+        self.logger.info("Camera system initialized.")
+
         self.check_for_input()
 
         # self.tui = DashboardApp(self)
         # self.tui.run()
+
+    def logging_setup(self) -> logging.Logger:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            handlers=[
+                logging.FileHandler("camera_system.log"),  # All logs go here
+                logging.StreamHandler(),  # Also print to terminal
+            ],
+        )
+
+        logger = logging.getLogger(__name__)
+        return logger
 
     def check_for_input(self) -> None:
         try:

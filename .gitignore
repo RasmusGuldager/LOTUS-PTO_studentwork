@@ -3,3 +3,4 @@ venv/
 __pycache__/
 Captured_images/
 User_images/
+camera_system.log
