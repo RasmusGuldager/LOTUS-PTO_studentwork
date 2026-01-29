@@ -1,12 +1,12 @@
 import threading, argparse, logging
 
 from Camera.camera_control import CameraControl
-from dashboard import DashboardApp
+#from dashboard import DashboardApp
 
 
 class Main:
     def __init__(self, auto_interval=None) -> None:
-        self.camera_control = CameraControl(auto=auto_interval)
+        self.camera_control = CameraControl(auto_interval=auto_interval)
 
         self.logger = self.logging_setup()
         self.logger.info("Camera system initialized.")
