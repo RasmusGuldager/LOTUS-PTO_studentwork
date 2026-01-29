@@ -5,7 +5,7 @@ from Camera.config_loader import config_loader
 
 
 class CameraControl:
-    def __init__(self, auto=False) -> None:
+    def __init__(self, auto_interval=None) -> None:
         self.camera = pylon.InstantCamera(
             pylon.TlFactory.GetInstance().CreateFirstDevice()
         )
@@ -18,8 +18,8 @@ class CameraControl:
         for folder in ["./User_images", "./Captured_images"]:
             os.makedirs(folder, exist_ok=True)
 
-        if auto:
-            self.run_in_thread(self.auto_pic_snapper, 5)
+        if auto_interval is not None:
+            self.run_in_thread(self.auto_pic_snapper, auto_interval)
 
     def snap_pic(self, user: bool = False) -> None:
         """
@@ -164,6 +164,8 @@ class CameraControl:
             TimeoutException: If the camera fails to return a frame within 5000ms.
         """
 
+        self.logger.info(f"Auto picture snapper started with interval {interval} seconds.")
+        
         while True:
             self.snap_pic(user=False)
             time.sleep(interval)

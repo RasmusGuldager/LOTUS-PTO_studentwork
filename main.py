@@ -5,8 +5,8 @@ from dashboard import DashboardApp
 
 
 class Main:
-    def __init__(self, auto=False) -> None:
-        self.camera_control = CameraControl(auto=auto)
+    def __init__(self, auto_interval=None) -> None:
+        self.camera_control = CameraControl(auto=auto_interval)
 
         self.logger = self.logging_setup()
         self.logger.info("Camera system initialized.")
@@ -61,12 +61,18 @@ class Main:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Camera control script")
+
     parser.add_argument(
         "-a",
         "--auto",
-        action="store_true",
-        help="Run the script in auto snapping mode by starting the auto picture snapper",
+        type=int,
+        nargs='?',
+        const=60, 
+        default=None,
+        help="Run in auto mode. Optional: specify interval in seconds (default: 60)",
     )
+    
     args = parser.parse_args()
 
-    Main(auto=args.auto)
+    # args.auto will be None (False), or an Integer (True)
+    Main(auto_interval=args.auto)
