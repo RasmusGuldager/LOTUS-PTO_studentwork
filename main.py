@@ -1,7 +1,9 @@
 import threading, argparse, logging
+from logging.handlers import RotatingFileHandler
 
 from Camera.camera_control import CameraControl
-#from dashboard import DashboardApp
+
+# from dashboard import DashboardApp
 
 
 class Main:
@@ -21,7 +23,9 @@ class Main:
             level=logging.INFO,
             format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
             handlers=[
-                logging.FileHandler("camera_system.log"),  # All logs go here
+                RotatingFileHandler(
+                    "camera_system.log", maxBytes=5 * 1024 * 1024, backupCount=2
+                ),
                 logging.StreamHandler(),  # Also print to terminal
             ],
         )
@@ -66,12 +70,12 @@ if __name__ == "__main__":
         "-a",
         "--auto",
         type=int,
-        nargs='?',
-        const=60, 
+        nargs="?",
+        const=60,
         default=None,
         help="Run in auto mode. Optional: specify interval in seconds (default: 60)",
     )
-    
+
     args = parser.parse_args()
 
     # args.auto will be None (False), or an Integer (True)
