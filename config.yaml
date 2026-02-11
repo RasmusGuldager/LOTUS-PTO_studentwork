@@ -1,39 +1,90 @@
-image_settings:
-  width: 1920                   # Maks er 3548
-  height: 1080                  # Maks er 3552
-  offset_x: 814 
-  offset_y: 1236
-  pixel_format: "bayer_rg8"
-  # Vælg mellem: mono8, mono10, mono10p, mono12p, rgb8, brg8, ycbcr422, 
-  # bayer_gr8, bayer_rg8, bayer_gb8, bayer_bg8, 
-  # bayer_gr10, bayer_rg10, bayer_gb10, bayer_bg10,
-  # bayer_gr10p, bayer_rg10p, bayer_gb10p, bayer_bg10p,
-  # bayer_gr12, bayer_rg12, bayer_gb12, bayer_bg12,
-  # bayer_gr12p, bayer_rg12p, bayer_gb12p, bayer_bg12p,
+DEFAULT: 
+    camera_config: &default_camera_settings # Default settings that are inherited by all others
+      image_settings:
+        width: 1920                   # Maks er 3548
+        height: 1080                  # Maks er 3552
+        offset_x: 814 
+        offset_y: 1236
+        pixel_format: "bayer_rg8"
+      video_settings:
+        enable_acquisition: "on"
+        acquisition_fps: 30
+      lighting_settings:
+        exposure_time: 15000.0        # mikrosekunder 
+        gain: 1.0
+      auto_settings:
+        auto_brightness_target: 0.5   # Mellem 0.0 og 1.0
+        auto_function: "min_gain"     # "min_gain", eller "min_exposure"
+        auto_exposure: "continuous"   # off, once, continuous
+        auto_exposure_lower_limit: 1.0
+        auto_exposure_upper_limit: 100000.0
+        auto_gain: "continuous"       # off, once, continuous
+        auto_gain_lower_limit: 0
+        auto_gain_upper_limit: 24
+    light_config: &default_light_settings
+      light_1: 0.5 #Strenght in percentage (0.0-1.0)
+      light_2: 0.5
+    sbc_config: &default_sbc_settings
+      light_1: #LEFT
+        pin: 17
+        min_sig: 0.05
+      light_2: #RIGHT
+        pin: 27
+        min_sig: 0.05
 
+# named hardware cofigurations for individiual rigs
+setups:
+  rig1: 
+    camera:
+      ip: 192.168.10.11
+      serial: 123123123
+      settings: *default_camera_settings
+    sbc:
+      ip: 127.0.0.101
+      settings: *default_sbc_settings
+    light:
+      settings: *default_light_settings
+  rig2:
+    camera:
+      ip: 192.168.10.12
+      serial: 123124673
+      settings: *default_camera_settings
+    sbc:
+      ip: 192.168.10.102
+      settings: *default_sbc_settings
+    light:
+      settings: *default_light_settings
+  rig3:
+    camera:
+      ip: 192.168.10.13
+      serial: 122487313
+      settings: *default_camera_settings
+    sbc:
+      ip: 192.168.10.103
+      settings: *default_sbc_settings
+    light:
+      settings: *default_light_settings
 
+# Named camera configuration presets
+camera_configs:
+  low_light:
+    <<: *default_camera_settings
+    lighting_settings:
+      exposure_time: 30000.0
+      gain: 4.0¨
+  high_light:
+    <<: *default_camera_settings
+    lighting_settings:
+      exposure_time: 3000.0
+      gain: 0.0
 
-
-video_settings:
-  enable_acquisition: "on"     # off or on
-  acquisition_fps: 30
-
-
-
-lighting_settings:
-  exposure_time: 15000.0        # mikrosekunder 
-  gain: 1.0
-
-
-
-auto_settings:
-  auto_brightness_target: 0.5   # Mellem 0.0 og 1.0
-  auto_function: "min_gain"     # "min_gain", eller "min_exposure"
-
-  auto_exposure: "continuous"   # off, once, continuous
-  auto_exposure_lower_limit: 1.0
-  auto_exposure_upper_limit: 100000.0
-
-  auto_gain: "continuous"       # off, once, continuous
-  auto_gain_lower_limit: 0
-  auto_gain_upper_limit: 24
+# Named lighting configuration presets
+light_configs:
+  bright:
+    <<: *default_light_settings
+    light_1: 1.0
+    light_2: 1.0
+  dim: 
+    <<: *default_light_settings
+    light_1: 0.15
+    light_2: 0.15

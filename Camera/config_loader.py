@@ -1,16 +1,24 @@
 import yaml
 
 
-def config_loader(camera) -> None:
+def config_loader(camera, config="config.yaml") -> None:
     """
-    Loads camera configuration from 'config.yaml' and applies settings to the camera.
+    Assumes a configuration dict, if string assume yaml and load. applies settings to the camera.
 
     Args:
         camera: The Basler camera object to configure.
+        config: Dict or string path to the camera configuration
     """
-
-    with open("config.yaml", "r") as file:
-        config = yaml.safe_load(file)
+    # Convert string to dict
+    if type(config) == str:
+        with open(config, "r") as file:
+            config = yaml.safe_load(file)["DEFAULT"]["camera_config"]
+    #elif type(config) == dict: #Assume correct dict and continue
+    #    continue
+    else:
+        print(f"ERROR: Inappropriate config type ('{type(config)}')") #TODO: INTEGRATE THIS WITH EXISTING LOGGING PARADIGM 
+        raise TypeError(f"Inappropriate config type ('{type(config)}'), must be of type 'str' or 'dict'")
+        
 
     image_settings = config["image_settings"]
     video_settings = config["video_settings"]
