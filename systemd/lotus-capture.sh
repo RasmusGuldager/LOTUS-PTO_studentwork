@@ -1,0 +1,1 @@
+python3 ./capture.py -h
