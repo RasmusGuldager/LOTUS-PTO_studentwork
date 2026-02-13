@@ -43,7 +43,9 @@ if args.c is not None:
             print(f"INFO: Captured an image with [{c[0]}] [{c[1]}]") #TODO: INTEGRATE THIS WITH EXISTING LOGGING PARADIGM 
         #Update configurations
         #sbc.update_settings(c[1]) #TODO: Implement a function that passes a dict to the SBC and updates the lighting configuration
-        #camera.update_settings(c[0]) 
+        #camera.update_settings(c[0])
+        #wait for 1 second? (to let the lights adjust)
+        #camera.capture()
 else:
     if args.verbose:
         print(f"INFO: Captured an image with [DEFAULT] [DEFAULT]") #TODO: INTEGRATE THIS WITH EXISTING LOGGING PARADIGM

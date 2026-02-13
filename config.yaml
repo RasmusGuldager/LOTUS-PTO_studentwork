@@ -22,8 +22,8 @@ DEFAULT:
         auto_gain_lower_limit: 0
         auto_gain_upper_limit: 24
     light_config: &default_light_settings
-      light_1: 0.5 #Strenght in percentage (0.0-1.0)
-      light_2: 0.5
+      light_1: 0.5 # Strength in percentage (0.0-1.0)
+      light_2: 0.5 # Strength in percentage (0.0-1.0)
     sbc_config: &default_sbc_settings
       light_1: #LEFT
         pin: 17
@@ -71,7 +71,7 @@ camera_configs:
     <<: *default_camera_settings
     lighting_settings:
       exposure_time: 30000.0
-      gain: 4.0¨
+      gain: 4.0
   high_light:
     <<: *default_camera_settings
     lighting_settings:
