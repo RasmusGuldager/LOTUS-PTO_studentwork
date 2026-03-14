@@ -44,7 +44,7 @@ capture_logger.info(f"Beginning image acquisition: {args.rig}")
 if args.c is not None:
     try:
         #Initiate controllers
-        camera_controller = CameraControl(rig["camera"]["ip"], name=args.rig)
+        camera_controller = CameraControl(ip=rig["camera"]["ip"], name=args.rig)
         micro_controller = SBC(rig["sbc"]["ip"], rig["sbc"]["port"])
         capture_logger.info(f"{len(args.c)} configs provided")
         for c in args.c:
