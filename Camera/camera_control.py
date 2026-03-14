@@ -259,7 +259,7 @@ class CameraControl:
 
     def close(self):
         if hasattr(self, "camera") and self.camera.IsOpen():
-            camera_control.camera.Close()
+            self.camera.Close()
         self.logger.info("Stopped")
 
     def load_config(self, config):
