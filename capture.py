@@ -41,27 +41,6 @@ rig = __CONFIG__["setups"][args.rig]
 capture_logger.info(f"Beginning image acquisition: {args.rig}")
 
 #Check and report of 
-if args.c is None:
-    try:
-        capture_logger.warning(f"No configs provided. A single image will be captured with default settings")
-        #Initiate controllers
-        camera_controller = CameraControl(rig["camera"]["ip"])
-        micro_controller = SBC(rig["sbc"]["ip"], rig["sbc"]["port"])
-        #Set camera settings
-        camera_controller.load_config(rig["camera"]["settings"])
-        #Initiate light
-        micro_controller.set_values(rig["light"])
-        #Capture image
-        camera_controller.snap_pic(cam_config_name="default", light_config_name="default")
-        #close
-        micro_controller.send_command("lightOff")
-        camera_controller.close()
-        micro_controller.disconnect()
-    except Exception:
-        #Format stacktraces into a single line with | markers to indicate linebreaks
-        err = traceback.format_exc().replace("\n", " | ")
-        capture_logger.error(err)
-
 if args.c is not None:
     try:
         #Initiate controllers
@@ -84,6 +63,26 @@ if args.c is not None:
         camera_controller.close()
         micro_controller.disconnect()
     except:
+        #Format stacktraces into a single line with | markers to indicate linebreaks
+        err = traceback.format_exc().replace("\n", " | ")
+        capture_logger.error(err)
+else:
+    try:
+        capture_logger.warning(f"No configs provided. A single image will be captured with default settings")
+        #Initiate controllers
+        camera_controller = CameraControl(rig["camera"]["ip"])
+        micro_controller = SBC(rig["sbc"]["ip"], rig["sbc"]["port"])
+        #Set camera settings
+        camera_controller.load_config(rig["camera"]["settings"])
+        #Initiate light
+        micro_controller.set_values(rig["light"])
+        #Capture image
+        camera_controller.snap_pic(cam_config_name="default", light_config_name="default")
+        #close
+        micro_controller.send_command("lightOff")
+        camera_controller.close()
+        micro_controller.disconnect()
+    except Exception:
         #Format stacktraces into a single line with | markers to indicate linebreaks
         err = traceback.format_exc().replace("\n", " | ")
         capture_logger.error(err)

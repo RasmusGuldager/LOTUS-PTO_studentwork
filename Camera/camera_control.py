@@ -42,7 +42,7 @@ class CameraControl:
             self.logger = logging.getLogger(__name__)
 
         #Mark initiation
-        self.logger.info(f"Camera Controller {ip}")
+        self.logger.info(f"Initialized Camera Controller {name}")
         logging.basicConfig(
             level=logging.INFO,
             format="[%(levelname)s] (%(name)s) %(message)s"
@@ -70,8 +70,6 @@ class CameraControl:
         # Setup config
         if config:
             self.load_config(config)
-        else:
-            self.logger.warning(f"Camera config not provided, using factory camera configuration")
 
         for folder in ["./Captured_images"]:
             os.makedirs(folder, exist_ok=True)
