@@ -44,7 +44,7 @@ capture_logger.info(f"Beginning image acquisition: {args.rig}")
 if args.c is not None:
     try:
         #Initiate controllers
-        camera_controller = CameraControl(rig["camera"]["ip"])
+        camera_controller = CameraControl(rig["camera"]["ip"], name=args.rig)
         micro_controller = SBC(rig["sbc"]["ip"], rig["sbc"]["port"])
         capture_logger.info(f"{len(args.c)} configs provided")
         for c in args.c:
@@ -59,6 +59,7 @@ if args.c is not None:
                 #Capture image
                 camera_controller.snap_pic(cam_config_name=cam_config_name, light_config_name=light_config_name)
                 #close
+        #Close out
         micro_controller.send_command("lightOff")
         camera_controller.close()
         micro_controller.disconnect()
@@ -70,7 +71,7 @@ else:
     try:
         capture_logger.warning(f"No configs provided. A single image will be captured with default settings")
         #Initiate controllers
-        camera_controller = CameraControl(rig["camera"]["ip"])
+        camera_controller = CameraControl(rig["camera"]["ip"], name=args.rig)
         micro_controller = SBC(rig["sbc"]["ip"], rig["sbc"]["port"])
         #Set camera settings
         camera_controller.load_config(rig["camera"]["settings"])

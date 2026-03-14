@@ -60,7 +60,6 @@ class CameraControl:
             if self.camera is None:
                 self.logger.error(f"No camera found at ip: {ip}")
                 self.close()
-                return None
 
         # Open cammera
         self.camera.Open()
