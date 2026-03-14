@@ -3,8 +3,8 @@ DEFAULT:
     image_settings:
       width: 3548                   # Maks er 3548
       height: 3552                  # Maks er 3552
-      offset_x: 814 
-      offset_y: 1236
+      offset_x: 0 
+      offset_y: 0
       pixel_format: "bayer_rg8"
     video_settings:
       enable_acquisition: "on"
