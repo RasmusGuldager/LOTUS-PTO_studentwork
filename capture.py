@@ -18,7 +18,6 @@ parser = argparse.ArgumentParser("LOTUS-PTO Camera Rig capture")
 parser.add_argument(dest='rig', help="Choice of camera to capture from", choices=__CONFIG__["setups"].keys())
 parser.add_argument('-c', nargs=2, action='append', help="Provide the name of a camera config followed by the name of a lighting config [See available configs with --list_configs]")
 parser.add_argument('--list_configs', action='store_true', help="List all camera and lighting configs by name")
-parser.add_argument('--verbose', action='store_true', help="Enable verbose execution")
 args = parser.parse_args()
 
 #Setup logger
@@ -48,17 +47,16 @@ if args.c is not None:
         micro_controller = SBC(rig["sbc"]["ip"], rig["sbc"]["port"])
         capture_logger.info(f"{len(args.c)} configs provided")
         for c in args.c:
-            if args.verbose:
-                cam_config_name = c[0]
-                light_config_name = c[1]
-                capture_logger.info(f"Capturing an image with [{cam_config_name}] [{light_config_name}]")
-                #Initiate light
-                micro_controller.set_values(__CONFIG__["light_configs"][light_config_name])
-                #Set camera settings
-                camera_controller.load_config(__CONFIG__["camera_configs"][cam_config_name])
-                #Capture image
-                camera_controller.snap_pic(cam_config_name=cam_config_name, light_config_name=light_config_name)
-                #close
+            cam_config_name = c[0]
+            light_config_name = c[1]
+            capture_logger.info(f"Capturing an image with [{cam_config_name}] [{light_config_name}]")
+            #Initiate light
+            micro_controller.set_values(__CONFIG__["light_configs"][light_config_name])
+            #Set camera settings
+            camera_controller.load_config(__CONFIG__["camera_configs"][cam_config_name])
+            #Capture image
+            camera_controller.snap_pic(cam_config_name=cam_config_name, light_config_name=light_config_name)
+            #close
         #Close out
         micro_controller.send_command("lightOff")
         camera_controller.close()
