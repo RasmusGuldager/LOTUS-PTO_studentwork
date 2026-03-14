@@ -5,7 +5,7 @@ DEFAULT:
       height: 3552                  # Maks er 3552
       offset_x: 0 
       offset_y: 0
-      pixel_format: "bayer_rg8"
+      pixel_format: "rgb8" #Debayered using Baslers layer
     video_settings:
       enable_acquisition: "on"
       acquisition_fps: 30
@@ -65,16 +65,35 @@ setups:
 
 # Named camera configuration presets
 camera_configs:
-  low_light:
+  action:
     <<: *default_camera_settings
     lighting_settings:
-      exposure_time: 30000.0
-      gain: 4.0
-  high_light:
+      exposure_time: 3500.0
+    auto_settings:
+      auto_exposure: "off"
+      auto_gain: "continous"
+      auto_gain_upper_limit: 18
+  balance:
     <<: *default_camera_settings
     lighting_settings:
-      exposure_time: 3000.0
-      gain: 0.0
+      exposure_time: 15000.0
+      gain: 3.5
+    auto_settings:
+      auto_exposure: "once"
+      auto_gain: "off"
+    video_settings:
+      acquisition_fps: 24
+  longExposure:
+    <<: *default_camera_settings
+    lighting_settings:
+      exposure_time: 750000.0
+      gain: 1.0
+    auto_settings:
+      auto_brightness_target: 0.65
+      auto_exposure: "off"
+      auto_gain: "off"
+    video_settings:
+      acquisition_fps: 10
 
 # Named lighting configuration presets
 light_configs:

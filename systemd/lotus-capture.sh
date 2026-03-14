@@ -27,7 +27,10 @@ PYTHON_BIN="./venv/bin/python3"
 
 # Keep retrying until
 until [ $count -ge $MAX_RETRIES ]; do
-    $PYTHON_BIN capture.py usb_cam && break
+    # Image acquisition begins
+    $PYTHON_BIN capture.py usb_cam -c action bright -c balance dim -c longExposure bright
+    break
+
     count=$((count+1))
     log_system "Attempt $count/$MAX_RETRIES failed, retrying in 60 seconds..."
     sleep $retry_timer
