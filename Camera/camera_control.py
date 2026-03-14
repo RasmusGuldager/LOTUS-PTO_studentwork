@@ -102,7 +102,7 @@ class CameraControl:
             if grabResult.GrabSucceeded():
                 img = grabResult.Array
                 timestamp = time.strftime("%Y%m%d-%H%M%S")
-                filename = f"{self.name}_{cam_config_name}_{light_name}_image_{timestamp}.png"
+                filename = f"{self.name}_{cam_config_name}_{light_config_name}_image_{timestamp}.png"
                 full_path = os.path.join("./captured_images", filename)
                 cv2.imwrite(full_path, img)
                 self.logger.info(f"Auto saved image as {full_path}")
