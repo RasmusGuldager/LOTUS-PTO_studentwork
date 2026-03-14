@@ -70,7 +70,7 @@ class CameraControl:
         if config:
             self.load_config(config)
 
-        for folder in ["./Captured_images"]:
+        for folder in ["./captured_images"]:
             os.makedirs(folder, exist_ok=True)
 
         if interval is not None:
