@@ -67,11 +67,11 @@ if args.c is not None:
         #Format stacktraces into a single line with | markers to indicate linebreaks
         err = traceback.format_exc().replace("\n", " | ")
         capture_logger.error(err)
-else:
+else: 
     try:
         capture_logger.warning(f"No configs provided. A single image will be captured with default settings")
         #Initiate controllers
-        camera_controller = CameraControl(rig["camera"]["ip"], name=args.rig)
+        camera_controller = CameraControl(ip=rig["camera"]["ip"], name=args.rig)
         micro_controller = SBC(rig["sbc"]["ip"], rig["sbc"]["port"])
         #Set camera settings
         camera_controller.load_config(rig["camera"]["settings"])
