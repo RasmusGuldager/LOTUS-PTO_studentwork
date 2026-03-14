@@ -1,8 +1,8 @@
 DEFAULT: 
   camera_config: &default_camera_settings # Default settings that are inherited by all others
     image_settings:
-      width: 1920                   # Maks er 3548
-      height: 1080                  # Maks er 3552
+      width: 3548                   # Maks er 3548
+      height: 3552                  # Maks er 3552
       offset_x: 814 
       offset_y: 1236
       pixel_format: "bayer_rg8"
