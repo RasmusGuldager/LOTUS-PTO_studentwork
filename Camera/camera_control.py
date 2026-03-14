@@ -3,9 +3,38 @@ import cv2, time, threading, os, logging, yaml
 
 from Camera.config_loader import config_loader
 
+__PIXEL_FORMAT_MAP__ = {
+    "mono8": "Mono8",
+    "mono10": "Mono10",
+    "mono10p": "Mono10p",
+    "mono12p": "Mono12p",
+    "rgb8": "RGB8",
+    "brg8": "BGR8",
+    "ycbcr422": "YCbCr422_8",
+    "bayer_gr8": "BayerGR8",
+    "bayer_rg8": "BayerRG8",
+    "bayer_gb8": "BayerGB8",
+    "bayer_bg8": "BayerBG8",
+    "bayer_gr10": "BayerGR10",
+    "bayer_rg10": "BayerRG10",
+    "bayer_gb10": "BayerGB10",
+    "bayer_bg10": "BayerBG10",
+    "bayer_gr10p": "BayerGR10p",
+    "bayer_rg10p": "BayerRG10p",
+    "bayer_gb10p": "BayerGB10p",
+    "bayer_bg10p": "BayerBG10p",
+    "bayer_gr12": "BayerGR12",
+    "bayer_rg12": "BayerRG12",
+    "bayer_gb12": "BayerGB12",
+    "bayer_bg12": "BayerBG12",
+    "bayer_gr12p": "BayerGR12p",
+    "bayer_rg12p": "BayerRG12p",
+    "bayer_gb12p": "BayerGB12p",
+    "bayer_bg12p": "BayerBG12p",
+}
 
 class CameraControl:
-    def __init__(self, config=None, ip=None, interval=None, logger=None) -> None:
+    def __init__(self, config=None, ip=None, interval=None, logger=None, name="noname") -> None:
         #Instansiate logger or accept passed logger
         if logger:
             self.logger = logger
@@ -36,10 +65,11 @@ class CameraControl:
         # Open cammera
         self.camera.Open()
         self.camera_mutex = threading.Lock()
+        self.name = name
 
         # Setup config
         if config:
-            self.update_settings(config)
+            self.load_config(config)
         else:
             self.logger.warning(f"Camera config not provided, using factory camera configuration")
 
@@ -49,13 +79,13 @@ class CameraControl:
         if interval is not None:
             self.run_in_thread(self.auto_pic_snapper, interval)
 
-    def snap_pic(self, user: bool = False) -> None:
+    def snap_pic(self, cam_config_name="factory", light_config_name="NA") -> None:
         """
         Captures a single frame from the Basler camera and saves it to disk.
         If called by the user, prompts for saving or viewing the image.
 
         Args:
-            user (bool): If True, saves to './User_images'. If False, saves to './Captured_images'.
+            path(str): Path to where the user will save the image 
 
         Raises:
             TimeoutException: If the camera fails to return a frame within 5000ms.
@@ -71,37 +101,11 @@ class CameraControl:
 
             if grabResult.GrabSucceeded():
                 img = grabResult.Array
-
-                if user:
-                    while True:
-                        user_input = input(
-                            "Press s to save the image, v to view or q to quit: "
-                        )
-
-                        if user_input == "s":
-                            timestamp = time.strftime("%Y%m%d-%H%M%S")
-                            filename = f"image_{timestamp}.png"
-                            full_path = os.path.join("./Captured_images", filename)
-                            cv2.imwrite(full_path, img)
-                            self.logger.info(f"User saved image as {full_path}")
-
-                        elif user_input == "v":
-                            cv2.imshow("Captured Image", img)
-                            cv2.waitKey(0)
-                            cv2.destroyAllWindows()
-
-                        elif user_input == "q":
-                            break
-
-                        else:
-                            print("Invalid input. Please try again.")
-
-                else:
-                    timestamp = time.strftime("%Y%m%d-%H%M%S")
-                    filename = f"image_{timestamp}.png"
-                    full_path = os.path.join("./Captured_images", filename)
-                    cv2.imwrite(full_path, img)
-                    self.logger.info(f"Auto saved image as {full_path}")
+                timestamp = time.strftime("%Y%m%d-%H%M%S")
+                filename = f"{self.name}_{cam_config_name}_{light_name}_image_{timestamp}.png"
+                full_path = os.path.join("./captured_images", filename)
+                cv2.imwrite(full_path, img)
+                self.logger.info(f"Auto saved image as {full_path}")
 
             else:
                 self.logger.error("Failed to grab image.")
@@ -201,18 +205,46 @@ class CameraControl:
             self.logger.info(f"Captured image at: {time.strftime("%Y%m%d-%H%M%S")}")
             time.sleep(interval)
 
-    def update_settings(self, config) -> None:
-        """Loads camera settings from config file."""
-
+    def manual_capture(self):
         try:
-            self.last_config = config
-            self.load_config(config)
-            self.logger.info("Camera settings updated.")
-        
+            with self.camera_mutex:
+                self.camera.StartGrabbingMax(1)
+
+                grabResult = self.camera.RetrieveResult(
+                    5000, pylon.TimeoutHandling_ThrowException
+                )
+
+            if grabResult.GrabSucceeded():
+                img = grabResult.Array
+                while True:
+                    user_input = input(
+                        "Press s to save the image, v to view or q to quit: "
+                    )
+
+                    if user_input == "s":
+                        timestamp = time.strftime("%Y%m%d-%H%M%S")
+                        filename = f"image_{timestamp}.png"
+                        full_path = os.path.join("./Captured_images", filename)
+                        cv2.imwrite(full_path, img)
+                        self.logger.info(f"User saved image as {full_path}")
+
+                    elif user_input == "v":
+                        cv2.imshow("Captured Image", img)
+                        cv2.waitKey(0)
+                        cv2.destroyAllWindows()
+
+                    elif user_input == "q":
+                        break
+            
+                    else:
+                        print("Invalid input. Please try again.")
+            else:
+                self.logger.error(f"Failed to grab image")
+
         except Exception as e:
-            self.logger.error(f"Error updating settings: {e}")
+            self.logger.error(f"Error capturing image: {e}")
             self.try_reconnect()
-    
+
     def try_reconnect(self):
         """Attempts to re-open the camera if lost."""
 
@@ -222,7 +254,7 @@ class CameraControl:
         )
             self.camera.Close()
             self.camera.Open()
-            self.update_settings(self.last_config)
+            self.load_config(self.last_config)
             self.logger.info("Camera reconnected successfully.")
 
         except Exception as e:
@@ -234,6 +266,7 @@ class CameraControl:
         self.logger.info("Stopped")
 
     def load_config(self, config):
+        self.last_config = config
         # Convert string to dict
         if type(config) == str:
             with open(config, "r") as file:
@@ -243,105 +276,80 @@ class CameraControl:
         else:
             self.logger.error(f"Inappropriate config type ('{type(config)}')")
             raise TypeError(f"Inappropriate config type ('{type(config)}'), must be of type 'str' or 'dict'")
-            
+        
+        try:    
+            image_settings = self.config["image_settings"]
+            video_settings = self.config["video_settings"]
+            lighting_settings = self.config["lighting_settings"]
+            auto_settings = self.config["auto_settings"]
 
-        image_settings = self.config["image_settings"]
-        video_settings = self.config["video_settings"]
-        lighting_settings = self.config["lighting_settings"]
-        auto_settings = self.config["auto_settings"]
+            # Image settings
+            self.camera.Width.Value = image_settings["width"]
+            self.camera.Height.Value = image_settings["height"]
+            self.camera.OffsetX.Value = image_settings["offset_x"]
+            self.camera.OffsetY.Value = image_settings["offset_y"]
 
-        # Image settings
-        self.camera.Width.Value = image_settings["width"]
-        self.camera.Height.Value = image_settings["height"]
-        self.camera.OffsetX.Value = image_settings["offset_x"]
-        self.camera.OffsetY.Value = image_settings["offset_y"]
+            self.camera.ExposureTime.Value = lighting_settings["exposure_time"]
+            self.camera.Gain.Value = lighting_settings["gain"]
 
-        self.camera.ExposureTime.Value = lighting_settings["exposure_time"]
-        self.camera.Gain.Value = lighting_settings["gain"]
+            # Video settings
+            enable_acquisition = video_settings["enable_acquisition"].lower()
+            if enable_acquisition == "on":
+                self.camera.AcquisitionFrameRateEnable.Value = True
+                self.camera.AcquisitionFrameRate.Value = video_settings["acquisition_fps"]
+            elif enable_acquisition == "off":
+                self.camera.AcquisitionFrameRateEnable.Value = False
+            else:
+                raise ValueError("Invalid enable_acquisition value in config.yaml")
 
-        # Video settings
-        enable_acquisition = video_settings["enable_acquisition"].lower()
-        if enable_acquisition == "on":
-            self.camera.AcquisitionFrameRateEnable.Value = True
-            self.camera.AcquisitionFrameRate.Value = video_settings["acquisition_fps"]
-        elif enable_acquisition == "off":
-            self.camera.AcquisitionFrameRateEnable.Value = False
-        else:
-            raise ValueError("Invalid enable_acquisition value in config.yaml")
+            # Auto settings
+            self.camera.AutoTargetBrightness.Value = auto_settings["auto_brightness_target"]
 
-        # Auto settings
-        self.camera.AutoTargetBrightness.Value = auto_settings["auto_brightness_target"]
+            auto_exposure = auto_settings["auto_exposure"].lower()
+            if auto_exposure == "off":
+                self.camera.ExposureAuto.Value = "Off"
+            elif auto_exposure == "once":
+                self.camera.ExposureAuto.Value = "Once"
+            elif auto_exposure == "continuous":
+                self.camera.ExposureAuto.Value = "Continuous"
+            else:
+                raise ValueError("Invalid auto_exposure value in config.yaml")
 
-        auto_exposure = auto_settings["auto_exposure"].lower()
-        if auto_exposure == "off":
-            self.camera.ExposureAuto.Value = "Off"
-        elif auto_exposure == "once":
-            self.camera.ExposureAuto.Value = "Once"
-        elif auto_exposure == "continuous":
-            self.camera.ExposureAuto.Value = "Continuous"
-        else:
-            raise ValueError("Invalid auto_exposure value in config.yaml")
+            self.camera.AutoExposureTimeLowerLimit.Value = auto_settings["auto_exposure_lower_limit"]
+            self.camera.AutoExposureTimeUpperLimit.Value = auto_settings["auto_exposure_upper_limit"]
 
-        self.camera.AutoExposureTimeLowerLimit.Value = auto_settings["auto_exposure_lower_limit"]
-        self.camera.AutoExposureTimeUpperLimit.Value = auto_settings["auto_exposure_upper_limit"]
+            auto_function = auto_settings["auto_function"].lower()
+            if auto_function == "min_gain":
+                self.camera.AutoFunctionProfile.Value = "MinimizeGain"
+            elif auto_function == "min_exposure":
+                self.camera.AutoFunctionProfile.Value = "MinimizeExposureTime"
+            else:
+                raise ValueError("Invalid auto_function value in config.yaml")
 
-        auto_function = auto_settings["auto_function"].lower()
-        if auto_function == "min_gain":
-            self.camera.AutoFunctionProfile.Value = "MinimizeGain"
-        elif auto_function == "min_exposure":
-            self.camera.AutoFunctionProfile.Value = "MinimizeExposureTime"
-        else:
-            raise ValueError("Invalid auto_function value in config.yaml")
+            auto_gain = auto_settings["auto_gain"].lower()
+            if auto_gain == "off":
+                self.camera.GainAuto.Value = "Off"
+            elif auto_gain == "once":
+                self.camera.GainAuto.Value = "Once"
+            elif auto_gain == "continuous":
+                self.camera.GainAuto.Value = "Continuous"
+            else:
+                raise ValueError("Invalid auto_gain value in config.yaml")
 
-        auto_gain = auto_settings["auto_gain"].lower()
-        if auto_gain == "off":
-            self.camera.GainAuto.Value = "Off"
-        elif auto_gain == "once":
-            self.camera.GainAuto.Value = "Once"
-        elif auto_gain == "continuous":
-            self.camera.GainAuto.Value = "Continuous"
-        else:
-            raise ValueError("Invalid auto_gain value in config.yaml")
+            self.camera.AutoGainLowerLimit.Value = auto_settings["auto_gain_lower_limit"]
+            self.camera.AutoGainUpperLimit.Value = auto_settings["auto_gain_upper_limit"]
 
-        self.camera.AutoGainLowerLimit.Value = auto_settings["auto_gain_lower_limit"]
-        self.camera.AutoGainUpperLimit.Value = auto_settings["auto_gain_upper_limit"]
+            # Pixel format
 
-        # Pixel format
-        pixel_format_mapping = {
-            "mono8": "Mono8",
-            "mono10": "Mono10",
-            "mono10p": "Mono10p",
-            "mono12p": "Mono12p",
-            "rgb8": "RGB8",
-            "brg8": "BGR8",
-            "ycbcr422": "YCbCr422_8",
-            "bayer_gr8": "BayerGR8",
-            "bayer_rg8": "BayerRG8",
-            "bayer_gb8": "BayerGB8",
-            "bayer_bg8": "BayerBG8",
-            "bayer_gr10": "BayerGR10",
-            "bayer_rg10": "BayerRG10",
-            "bayer_gb10": "BayerGB10",
-            "bayer_bg10": "BayerBG10",
-            "bayer_gr10p": "BayerGR10p",
-            "bayer_rg10p": "BayerRG10p",
-            "bayer_gb10p": "BayerGB10p",
-            "bayer_bg10p": "BayerBG10p",
-            "bayer_gr12": "BayerGR12",
-            "bayer_rg12": "BayerRG12",
-            "bayer_gb12": "BayerGB12",
-            "bayer_bg12": "BayerBG12",
-            "bayer_gr12p": "BayerGR12p",
-            "bayer_rg12p": "BayerRG12p",
-            "bayer_gb12p": "BayerGB12p",
-            "bayer_bg12p": "BayerBG12p",
-        }
-
-        pixel_format = image_settings["pixel_format"].lower()
-        if pixel_format in pixel_format_mapping:
-            camera.PixelFormat.Value = pixel_format_mapping[pixel_format]
-        else:
-            raise ValueError("Invalid pixel_format value in config.yaml")
+            pixel_format = image_settings["pixel_format"].lower()
+            if pixel_format in __PIXEL_FORMAT_MAP__:
+                self.camera.PixelFormat.Value = __PIXEL_FORMAT_MAP__[pixel_format]
+            else:
+                raise ValueError("Invalid pixel_format value in config.yaml")
+            self.logger.info("Camera settings updated.")
+        except Exception as e:
+            self.logger.error(f"Error updating settings: {e}")
+            self.try_reconnect()
 
     @staticmethod
     def run_in_thread(func, *args) -> threading.Thread:
@@ -364,7 +372,7 @@ if __name__ == "__main__":
             elif user_input == "s":
                 camera_control.stream()
             elif user_input == "u":
-                camera_control.update_settings("./config.yaml")
+                camera_control.load_config("./config.yaml")
             elif user_input == "q":
                 break
             else:

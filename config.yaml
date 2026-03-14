@@ -80,9 +80,9 @@ camera_configs:
 light_configs:
   bright:
     <<: *default_light_settings
-    light_1: 255
-    light_2: 255
+    light.1: 255
+    light.2: 255
   dim: 
     <<: *default_light_settings
-    light_1: 80
-    light_2: 80
+    light.1: 80
+    light.2: 80

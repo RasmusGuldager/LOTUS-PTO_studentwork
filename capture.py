@@ -47,10 +47,12 @@ if args.c is None:
         #Initiate controllers
         camera_controller = CameraControl(rig["camera"]["ip"])
         micro_controller = SBC(rig["sbc"]["ip"], rig["sbc"]["port"])
+        #Set camera settings
+        camera_controller.load_config(rig["camera"]["settings"])
         #Initiate light
         micro_controller.set_values(rig["light"])
         #Capture image
-        camera_controller.snap_pic()
+        camera_controller.snap_pic(cam_config_name="default", light_config_name="default")
         #close
         micro_controller.send_command("lightOff")
         camera_controller.close()
@@ -68,11 +70,15 @@ if args.c is not None:
         capture_logger.info(f"{len(args.c)} configs provided")
         for c in args.c:
             if args.verbose:
-                capture_logger.info(f"Capturing an image with [{c[0]}] [{c[1]}]")
+                cam_config_name = c[0]
+                light_config_name = c[1]
+                capture_logger.info(f"Capturing an image with [{cam_config_name}] [{light_config_name}]")
                 #Initiate light
-                micro_controller.set_values(rig["light"])
+                micro_controller.set_values(__CONFIG__["light_configs"][light_config_name])
+                #Set camera settings
+                camera_controller.load_config(__CONFIG__["camera_configs"][cam_config_name])
                 #Capture image
-                camera_controller.snap_pic()
+                camera_controller.snap_pic(cam_config_name=cam_config_name, light_config_name=light_config_name)
                 #close
         micro_controller.send_command("lightOff")
         camera_controller.close()
