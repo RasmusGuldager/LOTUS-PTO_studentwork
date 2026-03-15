@@ -1,18 +1,18 @@
 DEFAULT: 
   camera_config: &default_camera_settings # Default settings that are inherited by all others
-    image_settings:
+    image_settings: &default_image_settings
       width: 3548                   # Maks er 3548
       height: 3552                  # Maks er 3552
       offset_x: 0 
       offset_y: 0
-      pixel_format: "rgb8" #Debayered using Baslers layer
-    video_settings:
+      pixel_format: "bayer_rg8" #Debayered using Baslers layer
+    video_settings: &default_video_settings
       enable_acquisition: "on"
       acquisition_fps: 30
-    lighting_settings:
+    lighting_settings: &default_lighting_settings
       exposure_time: 15000.0        # mikrosekunder 
       gain: 1.0
-    auto_settings:
+    auto_settings: &default_auto_settings
       auto_brightness_target: 0.5   # Mellem 0.0 og 1.0
       auto_function: "min_gain"     # "min_gain", eller "min_exposure"
       auto_exposure: "continuous"   # off, once, continuous
@@ -68,8 +68,10 @@ camera_configs:
   action:
     <<: *default_camera_settings
     lighting_settings:
+      <<: *default_lighting_settings
       exposure_time: 3500.0
     auto_settings:
+      <<: *default_auto_settings
       auto_exposure: "off"
       auto_gain: "continous"
       auto_gain_upper_limit: 18
@@ -79,20 +81,25 @@ camera_configs:
       exposure_time: 15000.0
       gain: 3.5
     auto_settings:
+      <<: *default_auto_settings
       auto_exposure: "once"
       auto_gain: "off"
     video_settings:
+      <<: *&default_video_settings
       acquisition_fps: 24
   longExposure:
     <<: *default_camera_settings
     lighting_settings:
+      <<: *default_lighting_settings
       exposure_time: 750000.0
       gain: 1.0
     auto_settings:
+      <<: *default_auto_settings
       auto_brightness_target: 0.65
       auto_exposure: "off"
       auto_gain: "off"
     video_settings:
+      <<: *&default_video_settings
       acquisition_fps: 10
 
 # Named lighting configuration presets
