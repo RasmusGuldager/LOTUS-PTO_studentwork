@@ -42,7 +42,7 @@ class CameraControl:
             self.logger = logging.getLogger(__name__)
 
         # store output folder path
-        self.output_folder = os.path.join(output_folder, "/images/")
+        self.output_folder = os.path.join(output_folder, "images/")
         os.makedirs(self.output_folder, exist_ok=True)
 
         #Mark initiation
