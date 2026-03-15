@@ -73,7 +73,7 @@ camera_configs:
     auto_settings:
       <<: *default_auto_settings
       auto_exposure: "off"
-      auto_gain: "continous"
+      auto_gain: "off"
       auto_gain_upper_limit: 18
   balance:
     <<: *default_camera_settings
@@ -82,7 +82,7 @@ camera_configs:
       gain: 3.5
     auto_settings:
       <<: *default_auto_settings
-      auto_exposure: "once"
+      auto_exposure: "off"
       auto_gain: "off"
     video_settings:
       <<: *default_video_settings
