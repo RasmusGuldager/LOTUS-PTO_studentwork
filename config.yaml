@@ -85,7 +85,7 @@ camera_configs:
       auto_exposure: "once"
       auto_gain: "off"
     video_settings:
-      <<: *&default_video_settings
+      <<: *default_video_settings
       acquisition_fps: 24
   longExposure:
     <<: *default_camera_settings
@@ -99,7 +99,7 @@ camera_configs:
       auto_exposure: "off"
       auto_gain: "off"
     video_settings:
-      <<: *&default_video_settings
+      <<: *default_video_settings
       acquisition_fps: 10
 
 # Named lighting configuration presets
