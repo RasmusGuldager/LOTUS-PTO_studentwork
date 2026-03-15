@@ -18,6 +18,7 @@ parser = argparse.ArgumentParser("LOTUS-PTO Camera Rig capture")
 parser.add_argument(dest='rig', help="Choice of camera to capture from", choices=__CONFIG__["setups"].keys())
 parser.add_argument('-c', nargs=2, action='append', help="Provide the name of a camera config followed by the name of a lighting config [See available configs with --list_configs]")
 parser.add_argument('--list_configs', action='store_true', help="List all camera and lighting configs by name")
+parser.add_argument('--output_path', type=str, default="./captured_data/")
 args = parser.parse_args()
 
 #Setup logger
@@ -43,7 +44,7 @@ capture_logger.info(f"Beginning image acquisition: {args.rig}")
 if args.c is not None:
     try:
         #Initiate controllers
-        camera_controller = CameraControl(ip=rig["camera"]["ip"], name=args.rig)
+        camera_controller = CameraControl(ip=rig["camera"]["ip"], name=args.rig, output_folder=args.output_path)
         micro_controller = SBC(rig["sbc"]["ip"], rig["sbc"]["port"])
         capture_logger.info(f"{len(args.c)} configs provided")
         for c in args.c:

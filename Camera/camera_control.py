@@ -34,12 +34,16 @@ __PIXEL_FORMAT_MAP__ = {
 }
 
 class CameraControl:
-    def __init__(self, config=None, ip=None, interval=None, logger=None, name="noname") -> None:
+    def __init__(self, config=None, ip=None, interval=None, logger=None, name="noname", output_folder="./captured_images") -> None:
         #Instansiate logger or accept passed logger
         if logger:
             self.logger = logger
         else:
             self.logger = logging.getLogger(__name__)
+
+        # store output folder path
+        self.output_folder = os.path.join(output_folder, "/images/")
+        os.makedirs(self.output_folder, exist_ok=True)
 
         #Mark initiation
         self.logger.info(f"Initialized Camera Controller {name}")
@@ -70,9 +74,6 @@ class CameraControl:
         if config:
             self.load_config(config)
 
-        for folder in ["./captured_images"]:
-            os.makedirs(folder, exist_ok=True)
-
         if interval is not None:
             self.run_in_thread(self.auto_pic_snapper, interval)
 
@@ -99,8 +100,8 @@ class CameraControl:
             if grabResult.GrabSucceeded():
                 img = grabResult.Array
                 timestamp = time.strftime("%Y%m%d-%H%M%S")
-                filename = f"{self.name}_{cam_config_name}_{light_config_name}_image_{timestamp}.png"
-                full_path = os.path.join("./captured_images", filename)
+                filename = f"{timestamp}_{self.name}_{cam_config_name}_{light_config_name}.png"
+                full_path = os.path.join(self.output_folder, filename)
                 cv2.imwrite(full_path, img)
                 self.logger.info(f"Auto saved image as {full_path}")
 
@@ -198,7 +199,7 @@ class CameraControl:
         self.logger.info(f"Auto picture snapper started with interval {interval} seconds.")
         
         while True:
-            self.snap_pic(user=False)
+            self.snap_pic()
             self.logger.info(f"Captured image at: {time.strftime("%Y%m%d-%H%M%S")}")
             time.sleep(interval)
 
@@ -220,8 +221,8 @@ class CameraControl:
 
                     if user_input == "s":
                         timestamp = time.strftime("%Y%m%d-%H%M%S")
-                        filename = f"image_{timestamp}.png"
-                        full_path = os.path.join("./Captured_images", filename)
+                        filename = f"{timestamp}_{self.name}_NA_NA.png"
+                        full_path = os.path.join(self.output_folder, filename)
                         cv2.imwrite(full_path, img)
                         self.logger.info(f"User saved image as {full_path}")
 
