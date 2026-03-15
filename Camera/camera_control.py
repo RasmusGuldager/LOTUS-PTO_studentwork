@@ -366,7 +366,7 @@ if __name__ == "__main__":
                 "Enter 'p' to take a picture, 's' to start live view, 'u' to update settings, or 'q' to quit: "
             )
             if user_input == "p":
-                camera_control.snap_pic(user=True)
+                camera_control.manual_capture()
             elif user_input == "s":
                 camera_control.stream()
             elif user_input == "u":
