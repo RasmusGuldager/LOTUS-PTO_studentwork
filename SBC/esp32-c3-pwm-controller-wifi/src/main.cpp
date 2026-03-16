@@ -1,76 +1,162 @@
 #include <Arduino.h>
+#include <ArduinoOTA.h>
 #include "config.h"
-#include "net/network_manager.h"
-#include "net/network_server.h"
-#include "net/message_handler.h"
+#include "http_server.h"
 #include "resources/pwm_controller.h"
 
-// Import and intialize modules
-// Global network manager (defined in network_manager.cpp)
-static PwmController pwm;
-static PwmProvider pwmProvider(pwm);
-static MessageHandler msgHandler;
-// NetServer is created via the NetworkManager at runtime so it can pick the
-// correct transport (WiFi / Ethernet) after the refactor.
-static std::unique_ptr<NetServer> server;
+#if defined(TRANSPORT_ETHERNET)
+  #include <Ethernet.h>
+#else
+  #include <WiFi.h>
+#endif
+
+static PwmController* pwm         = nullptr;
+static PwmProvider*   pwmProvider = nullptr;
+static HttpServer*    httpServer  = nullptr;
+
+static unsigned long _lastReconnectAttempt = 0;
+static bool          _serverStarted        = false;
+static constexpr unsigned long RECONNECT_INTERVAL_MS = 5000;
+
+static bool networkConnected() {
+#if defined(TRANSPORT_ETHERNET)
+  return Ethernet.linkStatus() != LinkOFF;
+#else
+  return WiFi.status() == WL_CONNECTED;
+#endif
+}
+
+static void connectNetwork() {
+  #if defined(TRANSPORT_ETHERNET)
+    static bool ethInitialised = false;
+    if (!ethInitialised) {
+      Ethernet.init(Config::ETH_CS_PIN);
+      ethInitialised = true;
+    }
+
+    bool ok = Config::ETH_USE_DHCP
+      ? Ethernet.begin(const_cast<uint8_t*>(Config::ETH_MAC)) != 0
+      : (Ethernet.begin(
+          const_cast<uint8_t*>(Config::ETH_MAC),
+          IPAddress(Config::ETH_IP),
+          IPAddress(Config::ETH_DNS),
+          IPAddress(Config::ETH_GW),
+          IPAddress(Config::ETH_MASK)
+        ), true);
+
+    delay(200);
+    if (ok && networkConnected()) {
+      Serial.println("Ethernet connected: " + Ethernet.localIP().toString());
+    } else {
+      Serial.println("Ethernet failed — check cable and config");
+    }
+
+  #else
+    WiFi.mode(WIFI_STA);
+    WiFi.disconnect(true);
+    delay(100);
+    digitalWrite(Config::ONBOARD_LED_PIN, HIGH);
+    Serial.print("Connecting to WiFi");
+    unsigned long start = millis();
+    while (WiFi.status() != WL_CONNECTED) {
+      digitalWrite(Config::ONBOARD_LED_PIN, HIGH);
+      if (millis() - start > 15000) {
+          Serial.println("\nWiFi timeout — check credentials");
+          // optionally restart: ESP.restart();
+          break;
+      }
+      delay(500);
+      Serial.print('.');
+    };
+    Serial.println("\nWiFi connected: " + WiFi.localIP().toString());
+  #endif
+}
+
+static void maintainNetwork() {
+  if (networkConnected()) return;
+
+  // Link just dropped
+  _serverStarted = false;
+
+  unsigned long now = millis();
+  if (now - _lastReconnectAttempt < RECONNECT_INTERVAL_MS) return;
+  _lastReconnectAttempt = now;
+
+  #if defined(TRANSPORT_ETHERNET)
+    Serial.println("Ethernet lost — retrying");
+    bool ok = Config::ETH_USE_DHCP
+      ? Ethernet.begin(const_cast<uint8_t*>(Config::ETH_MAC)) != 0
+      : (Ethernet.maintain(), true);  // maintain() handles static IP renewal
+    if (ok && networkConnected()) {
+      Serial.println("Ethernet restored: " + Ethernet.localIP().toString());
+    }
+  #else
+    Serial.println("WiFi lost — reconnecting");
+    WiFi.disconnect(true);
+    delay(100);
+    WiFi.begin(Config::WIFI_SSID, Config::WIFI_PASS);
+  #endif
+}
+
+static void setupOTA() {
+  ArduinoOTA.setHostname(Config::HOSTNAME);  // optional, shows in IDE
+  ArduinoOTA.setPassword(Config::OTAAUTH);
+
+  ArduinoOTA.onStart([]() {
+    Serial.println("OTA starting...");
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("OTA done — rebooting");
+  });
+  ArduinoOTA.onError([](ota_error_t e) {
+    Serial.printf("OTA error [%u]\n", e);
+  });
+
+  ArduinoOTA.begin();
+  Serial.println("OTA ready");
+}
 
 void setup() {
-  // Begin Serial (For debugging)
-  pinMode(8, OUTPUT); //assign led pin
   Serial.begin(115200);
-  Serial.println("Starting device");
+  delay(500);
+  Serial.println("Connecting to network");
+  connectNetwork();  // blocks until first connection
+  setupOTA();
 
-  // Intialize modules
-  pwm.begin(); // Initializes PWM pins
+  Serial.println("Initializing PWM controller");
+  pwm = new PwmController();
+  pwm->begin();
+  pwmProvider = new PwmProvider(*pwm);
 
-  // start network transport(s)
-  networkManager.begin();
+  Serial.println("Starting http server");
+  httpServer  = new HttpServer();
+  httpServer->addProvider(pwmProvider);
+  httpServer->begin();
 
-  // create a server instance bound to the configured port
-  server = networkManager.createServer(Config::SERVER_PORT);
-  if (server) server->begin();
-
-  // register providers so MessageHandler can dispatch messages to relevant modules
-  msgHandler.addProvider(&pwmProvider);
+  _serverStarted = true;
 }
 
 void loop() {
-  networkManager.loop(); // maintain network state
+  ArduinoOTA.handle();   // add this line at the top
+  #if defined(TRANSPORT_ETHERNET)
+    Ethernet.maintain();  // renew DHCP lease when needed
+  #endif
 
-  if (!server) {
-    // attempt to recreate server if transport changed
-    server = networkManager.createServer(Config::SERVER_PORT);
-    if (server) server->begin();
-    delay(10);
-    Serial.println("Server not available yet");
-    return;
+  maintainNetwork();
+
+  if (!networkConnected()) return;  // stay dark until link is back
+
+  // Re-announce IP after reconnect
+  if (!_serverStarted) {
+    Serial.println("Network restored — server back on: " + 
+      #if defined(TRANSPORT_ETHERNET)
+        Ethernet.localIP().toString()
+      #else
+        WiFi.localIP().toString()
+      #endif
+    );
+    _serverStarted = true;
+    digitalWrite(Config::ONBOARD_LED_PIN, HIGH);
   }
-
-  // Accept an incoming client (returns nullptr if none waiting)
-  std::unique_ptr<NetClient> client = server->available();
-  if (!client) {
-    delay(10);
-    return;
-  }
-
-  // Read all available bytes into a payload string and dispatch
-  if (client->available() > 0) {
-    digitalWrite(Config::ONBOARD_LED_PIN, HIGH); // Turn debug light on
-    String payload;
-    while (client->available() > 0) {
-      int c = client->read();
-      if (c < 0) break;
-      payload += (char)c;
-    }
-    Serial.println("Datapacket received");
-    msgHandler.handle(payload, *client, networkManager);
-  }
-  
-  digitalWrite(Config::ONBOARD_LED_PIN, LOW); // Turn debug light off}
-    
-  // Close client when done
-  client->stop();
-
-  // slow down cpu by 1 ms to reduce load
-  delay(1);
+  httpServer->loop();
 }

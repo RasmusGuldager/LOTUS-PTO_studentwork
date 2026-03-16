@@ -2,240 +2,177 @@
 #include "config.h"
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <ESP32Servo.h>
 
-// Map logical pwm channels to specific GPIO pins
+// ##################################################################################
+// ##                              STATIC VARIABLES                                ##
+// ##################################################################################
+// PWM pin count and objects
+static const uint8_t NUM_LEDS    = 3;
+static const uint8_t NUM_WIPERS  = 1;
+static Servo ledServos[NUM_LEDS];
+static Servo wiperServos[NUM_WIPERS];
 
-//LED pins and channels
-static const uint8_t NUM_LEDS = 3;
+// Lumen Light pins
 static const uint8_t LED_PINS[] = {
-  Config::LED0_PIN, 
-  Config::LED1_PIN, 
+  Config::LED0_PIN,
+  Config::LED1_PIN,
   Config::LED2_PIN,
 };
-static const uint8_t LED_CHANNELS[] = {
-  Config::LED0_CHANNEL, 
-  Config::LED1_CHANNEL, 
-  Config::LED2_CHANNEL,
-};
-// Wiper pins and channels
-static const uint8_t NUM_WIPERS = 1; 
+
+// Wiper pins
 static const uint8_t WIPER_PINS[] = {
-  Config::WIPER0_PIN, 
-};
-static const uint8_t WIPER_CHANNELS[] = {
-  Config::WIPER0_CHANNEL, 
+  Config::WIPER0_PIN,
 };
 
+// Lumen light: 1100 µs = off, 1900 µs = full brightness
+static const uint16_t LIGHT_MIN = 1100;
+static const uint16_t LIGHT_MAX = 1900;
+
+// Wiper servo: adjust to your servo's physical range
+static const uint16_t WIPER_MIN_US = 1000;
+static const uint16_t WIPER_MAX_US = 2000;
+
 // ##################################################################################
-// ##                           CONTEROLLER DEFINITION                             ##
+// ##                             HELPER FUNCTIONS                                 ##
+// ##################################################################################
+// Map 0-255 brightness value to Lumen microseconds (1100-1900)
+static uint16_t brightnessToUs(uint8_t value) {
+  return map(value, 0, 255, LIGHT_MIN, LIGHT_MAX);
+}
+
+// Map 0-180 degrees to wiper microseconds
+static uint16_t degreesToUs(uint8_t degrees) {
+  return map(degrees, 0, 180, WIPER_MIN_US, WIPER_MAX_US);
+}
+
+// ##################################################################################
+// ##                           CONTROLLER DEFINITION                              ##
 // ##################################################################################
 void PwmController::begin() {
-  // Lights Attach pins to channels (i.e. Logic channels to pins)
-  for (uint8_t i=0; i<NUM_LEDS; i++) {
-    ledcSetup(LED_CHANNELS[i], Config::LED_PWM_FREQUENCY, Config::LED_PWM_RESOLUTION);
-    ledcAttachPin(LED_PINS[i], LED_CHANNELS[i]); // Assign the channel to pin in accordance with the LED_CHANNEL_PINS sequence
+  for (uint8_t i = 0; i < NUM_LEDS; i++) {
+    ledServos[i].attach(LED_PINS[i], LIGHT_MIN, LIGHT_MAX);
+    ledServos[i].writeMicroseconds(LIGHT_MIN); // off
   }
-
-  // Attach wiper pins to channels
-  for (uint8_t i=0; i<NUM_WIPERS; i++) {
-    ledcSetup(WIPER_CHANNELS[i], Config::WIPER_PWM_FREQUENCY, Config::WIPER_PWM_RESOLUTION);
-    ledcAttachPin(WIPER_PINS[i], WIPER_CHANNELS[i]); // Assign the channel to pin in accordance with the LED_CHANNEL_PINS sequence
+  for (uint8_t i = 0; i < NUM_WIPERS; i++) {
+    wiperServos[i].attach(WIPER_PINS[i], WIPER_MIN_US, WIPER_MAX_US);
+    wiperServos[i].writeMicroseconds(WIPER_MIN_US);
   }
-  // Initialize outputs to 0
-  setAll(0);
 }
 
 void PwmController::setChannel(uint8_t ch, uint8_t value) {
-  ledcWrite(ch, value);
-  Serial.printf("PwmController: set channel %u = %u\n", ch, value);
+  // ch 0..NUM_LEDS-1 = lights, ch NUM_LEDS..NUM_LEDS+NUM_WIPERS-1 = wipers
+  if (ch < NUM_LEDS) {
+    ledServos[ch].writeMicroseconds(brightnessToUs(value));
+    Serial.printf("PwmController: LED %u = %u (%u µs)\n", ch, value, brightnessToUs(value));
+  } else {
+    uint8_t wi = ch - NUM_LEDS;
+    if (wi < NUM_WIPERS) {
+      wiperServos[wi].writeMicroseconds(degreesToUs(value));
+      Serial.printf("PwmController: WIPER %u = %u° (%u µs)\n", wi, value, degreesToUs(value));
+    }
+  }
 }
 
 uint8_t PwmController::getChannel(uint8_t ch) const {
-  return ledcRead(ch);
+  if (ch < NUM_LEDS) {
+    uint16_t us = ledServos[ch].readMicroseconds();
+    return map(us, LIGHT_MIN, LIGHT_MAX, 0, 255);
+  } else {
+    uint8_t wi = ch - NUM_LEDS;
+    if (wi < NUM_WIPERS) {
+      uint16_t us = wiperServos[wi].readMicroseconds();
+      return map(us, WIPER_MIN_US, WIPER_MAX_US, 0, 180);
+    }
+  }
+  return 0;
 }
 
 void PwmController::setAll(uint8_t value) {
-  for (uint8_t i = 0; i < NUM_LEDS; ++i) {
-    setChannel(LED_CHANNELS[i], value);
-  }
-    for (uint8_t i = 0; i < NUM_WIPERS; ++i) {
-    setChannel(WIPER_CHANNELS[i], value);
-  }
+  for (uint8_t i = 0; i < NUM_LEDS; ++i){setChannel(i, value);}
+  for (uint8_t i = 0; i < NUM_WIPERS; ++i){setChannel(NUM_LEDS + i, value);}
 }
 
 void PwmController::lightTest() {
-  int max_val = (1 << Config::LED_PWM_RESOLUTION) - 1;
-  for (int v = 0; v <= max_val; ++v) {
-    setAll((uint8_t)v);
-    delay(10);
+  for (int v = 0; v <= 255; ++v) {
+    for (uint8_t i = 0; i < NUM_LEDS; ++i)
+      ledServos[i].writeMicroseconds(brightnessToUs(v));
+    delay(50);
   }
 }
 
 void PwmController::lightOff() {
-  for (uint8_t i=0; i<NUM_LEDS; i++) {setChannel(LED_CHANNELS[i], 0);}
+  for (uint8_t i = 0; i < NUM_LEDS; i++)
+    ledServos[i].writeMicroseconds(LIGHT_MIN);
 }
 
 void PwmController::lightOn() {
-  for (uint8_t i=0; i<NUM_LEDS; i++) {setChannel(LED_CHANNELS[i], 128);} // ONly half light
+  // Half brightness = midpoint between 1100 and 1900 = 1500 µs
+  uint16_t halfUs = brightnessToUs(128);
+  for (uint8_t i = 0; i < NUM_LEDS; i++)
+    ledServos[i].writeMicroseconds(halfUs);
 }
 
-void PwmController::wipe(){
-  //Implement wiping feature
+void PwmController::wipe() {
+  bool wiping = true; // guard handled at provider level, but kept for clarity
   for (uint8_t i = 0; i < NUM_WIPERS; ++i) {
-    for (uint8_t a = 0; a <= 180; a++){
-      setChannel(WIPER_CHANNELS[i], a);
-      delay(20); // Wait wait
+    for (uint8_t a = 0; a <= 180; a++) {
+      wiperServos[i].writeMicroseconds(degreesToUs(a));
+      delay(20);
     }
-    for (uint8_t a = 180; a >= 0; a--){
-      setChannel(WIPER_CHANNELS[i], a);
-      delay(20); // Wait wait
+    for (uint8_t a = 180; a > 0; a--) {
+      wiperServos[i].writeMicroseconds(degreesToUs(a));
+      delay(20);
     }
+    wiperServos[i].writeMicroseconds(degreesToUs(0)); // ensure return to 0
   }
 }
 
-// ##################################################################################
-// ##                               PROVIDER INTERFACE                             ##
-// ##################################################################################
-/// The provider class links the controller with a standardized message handling interface.
-PwmProvider::PwmProvider(PwmController& pwm)
-  : _pwm(pwm) {}
+PwmProvider::PwmProvider(PwmController& pwm) : _pwm(pwm) {}
 
 bool PwmProvider::matchesKey(const char* key) const {
-  bool is_light = (strncmp(key, "light", 5) == 0);
-  bool is_wiper = (strncmp(key, "wiper", 5) == 0);
-  return is_light || is_wiper;
+  return strncmp(key, "led", 3) == 0 || strncmp(key, "wiper", 5) == 0;
 }
 
 bool PwmProvider::handleSet(const char* key, const JsonVariant& value, JsonDocument& reply) {
-  // Support both "light" and "light.N"
-  if (strncmp(key, "light.", 6) == 0) {
-    int i = atoi(key + 6);
-    if (i < NUM_LEDS && value.is<int>()) {
-      int v = value.as<int>();
-      if (v < 0) v = 0; //Floor
-      if (v > 255) v = 255; //Ceil
-      _pwm.setChannel(LED_CHANNELS[i], (uint8_t)v);
-      reply["success"] = true;
-      reply["result"] = String("light.") + String(i) + " set";
-      return true;
-    }
-    reply["success"] = false;
-    reply["error"] = "invalid light channel or value";
-    reply["value"] = key;
-    return true; // handled (but invalid)
-  }
-  
-  if (strcmp(key, "light") == 0 && value.is<int>()) {
-    int v = value.as<int>();
-    if (v < 0) v = 0; //Floor
-    if (v > 255) v = 255; //Ceil
-    for (uint8_t i = 0; i < NUM_LEDS; ++i) {_pwm.setChannel(LED_CHANNELS[i], v);}
-    reply["success"] = true;
-    reply["result"] = "all light channels set";
-    return true;
-  }
+  uint8_t ch = 0;
+  if      (strcmp(key, "led0")   == 0) ch = 0;
+  else if (strcmp(key, "led1")   == 0) ch = 1;
+  else if (strcmp(key, "led2")   == 0) ch = 2;
+  else if (strcmp(key, "wiper0") == 0) ch = 3;
 
-  if (strncmp(key, "wiper.", 6) == 0) {
-    int i = atoi(key + 6);
-    if (i < NUM_WIPERS && value.is<int>()) {
-      int v = value.as<int>();
-      if (v < 0) v = 0; //Floor
-      if (v > 255) v = 255; //Ceil
-      _pwm.setChannel(WIPER_CHANNELS[i], (uint8_t)v);
-      reply["success"] = true;
-      reply["result"] = String("wiper.") + String(i) + " set";
-      return true;
-    }
-    reply["success"] = false;
-    reply["error"] = "invalid light channel or value";
-    reply["value"] = key;
-    return true; // handled (but invalid)
-  }
-  
-  if (strcmp(key, "wiper") == 0 && value.is<int>()) {
-    int v = value.as<int>();
-    if (v < 0) v = 0; //Floor
-    if (v > 255) v = 255; //Ceil
-    for (uint8_t i = 0; i < NUM_WIPERS; ++i) {_pwm.setChannel(WIPER_CHANNELS[i], v);}
-    reply["success"] = true;
-    reply["result"] = "all wiper channels set";
-    return true;
-  }
-  reply["success"] = false;
-  reply["error"] = "unknown get key";
-  reply["value"] = key;
-  return false;
+  _pwm.setChannel(ch, value.as<uint8_t>());
+  reply["success"] = true;
+  reply["key"]     = key;
+  reply["value"]   = value.as<uint8_t>();
+  return true;
 }
 
 bool PwmProvider::handleGet(const char* key, JsonDocument& reply) {
-  // Retrieve specific LED value
-  if (strncmp(key, "light.", 6) == 0) {
-    int i = atoi(key + 6);
-    if (i >= 1 && i < NUM_LEDS) {
-      // convert 1-based key to 0-based index
-      reply["success"] = true;
-      reply["value"] = _pwm.getChannel(LED_CHANNELS[i]);
-      return true;
-    }
-  }
-  
-  // Retrieve all led values
-  if (strcmp(key, "light") == 0) {
-    reply["success"] = true;
-    reply["key"] = key;
-    uint8_t values[NUM_LEDS];
-    for (uint8_t i = 0; i < NUM_LEDS; ++i) {values[i] = _pwm.getChannel(LED_CHANNELS[i]);}
-    reply["value"] = values;
-    return true;
-  }
-  
-  // Retrieve wiper stepper value
-  if (strcmp(key, "wiper") == 0) {
-      reply["success"] = true;
-      reply["key"] = key;
-      uint8_t values[NUM_WIPERS];
-      for (uint8_t i = 0; i < NUM_WIPERS; ++i) {values[i] = _pwm.getChannel(WIPER_CHANNELS[i]);}
-      return true;
-    }
+  uint8_t ch = 0;
+  if      (strcmp(key, "light.1")   == 0) ch = 0;
+  else if (strcmp(key, "light.2")   == 0) ch = 1;
+  else if (strcmp(key, "light.3")   == 0) ch = 2;
+  else if (strcmp(key, "wiper") == 0) ch = 3;
+  else return false;
 
-  reply["success"] = false;
-  reply["error"] = "unknown get key";
-  reply["value"] = key;
-  return false;
+  reply["success"] = true;
+  reply["key"]     = key;
+  reply["value"]   = _pwm.getChannel(ch);
+  return true;
 }
 
 bool PwmProvider::handleCmd(const char* cmd, const JsonVariant& params, JsonDocument& reply) {
-  if (strcmp(cmd, "lightTest") == 0) {
-    _pwm.lightTest();
-    _pwm.lightTest();
-    reply["success"] = true;
-    reply["result"] = "light Test started";
-    return true;
+  if (strcmp(cmd, "lightTest") == 0) { _pwm.lightTest(); }
+  else if (strcmp(cmd, "lightOff") == 0) { _pwm.lightOff(); }
+  else if (strcmp(cmd, "lightOn")  == 0) { _pwm.lightOn();  }
+  else if (strcmp(cmd, "wipe")     == 0) { _pwm.wipe();     }
+  else if (strcmp(cmd, "setAll")   == 0) {
+    _pwm.setAll(params["value"].as<uint8_t>());
   }
+  else return false;
 
-  if (strcmp(cmd, "lightOff") == 0) {
-    _pwm.lightOff();
-    reply["success"] = true;
-    reply["result"] = "all lights off";
-    return true;
-  }
-
-  if (strcmp(cmd, "lightOn") == 0) {
-    _pwm.lightOn();
-    reply["success"] = true;
-    reply["result"] = "all lights on (half brightness)";
-    return true;
-  }
-
-  if (strcmp(cmd, "wipe") == 0) {
-    _pwm.wipe();
-    reply["success"] = true;
-    reply["result"] = "Performing 1x wipe";
-    return true;
-  }
-
-  reply["success"] = false;
-  reply["error"] = "unknown command";
-  reply["value"] = cmd;
-  return false;
+  reply["success"] = true;
+  reply["cmd"]     = cmd;
+  return true;
 }

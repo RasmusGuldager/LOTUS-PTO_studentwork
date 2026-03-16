@@ -17,8 +17,6 @@ public:
   void lightOn();
   void wipe();
 
-private:
-  uint8_t channels[3] = {0, 0, 0};
 };
 
 // Provider Interface

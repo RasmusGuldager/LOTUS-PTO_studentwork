@@ -1,75 +1,172 @@
 # Server -> SBC/Microcontroller communication overview
 ## Overview
-Communication between the server and SBCs/Microcontrollers will happen with JSON serialized objects.
-The JSON messages are framed with a 4-byte big-endian length prefix as a quality assurance measure. The messages should follow the format summarized below, but further detailed in the main repository.
+Communication between the server and SBCs/Microcontrollers happens over HTTP REST using JSON serialized objects.
+The device hosts a WebServer on port 80. All request and response bodies are `application/json`.
 
 For detailed READMEs look at the respective project folders
 
+---
+
+## Endpoints
+
+| Method | Path      | Description                        |
+|--------|-----------|------------------------------------|
+| GET    | `/ping`   | Heartbeat check                    |
+| GET    | `/status` | Device network status              |
+| POST   | `/get`    | Retrieve one or more values        |
+| POST   | `/set`    | Set one or more values             |
+| POST   | `/cmd`    | Run a named command                |
+
+---
+
 ## Examples
-### Heartbeat (`ping` / `pong`)
+
+### Heartbeat (`/ping`)
 Request:
-```{  "type": "ping"}```
+```
+GET /ping
+```
 Response:
-```{"type": "pong", "success": true}```
+```json
+{"type": "pong"}
+```
 
-### Retrieve a value (`get`)
+---
+
+### Device status (`/status`)
+Request:
+```
+GET /status
+```
+Response:
+```json
+{"ssid": "MyNetwork", "ip": "192.168.1.100", "rssi": -62}
+```
+
+---
+
+### Retrieve values (`/get`)
+Request body is a JSON array of key names.
+
 Request (get channel 1):
-```{"type": "get",  "get": ["light.1"]}```
+```
+POST /get
+["light.1"]
+```
 Response (success):
-```{"type": "response", "success": true, "value": 0}```
+```json
+{"success": true, "data": {"light.1": 128}}
+```
 
-Request (get channel 1 and channel 2):
-```{"type": "get",  "get": ["light.1", "light.2"]}```
+Request (get multiple channels):
+```
+POST /get
+["light.1", "light.2", "wiper"]
+```
 Response (success):
-```{"type": "response", "success": true, "value": 0}```
-```{"type": "response", "success": true, "value": 0}```
-
+```json
+{"success": true, "data": {"light.1": 128, "light.2": 0, "wiper": 90}}
+```
 
 Error (unknown key):
-```{"type": "response", "success": false, "error": "unknown get key", "value": "name-of-unknown-key"}```
-
-### Set values (`set`)
-*Note:* Setter commands can have nested json objects allowing to set multiple objects at a time, the microcontroller will process them sequentially 
-Request (set channel 1):
-```{"type": "set", "set": {"light.1": 128}}```
-Response (success):
-```{"type": "response", "success": true, "result": "light.1 set"}```
-
-Request (set all channels):
-```{"type": "set", "set": { "pwm": 200 }}```
-Response (success):
-```{"type": "response", "success": true, "result": "all pwm channels set"}```
-
-
-Request (set channel 1 and channel 2):
-```{"type": "set", "set": {"light.1": 128, "light.2": 128}}```
-Response:
-```{"type": "response", "success": true, "result": "light.1 set"}```
-```{"type": "response", "success": true, "result": "light.2 set"}```
-
-Error (unknown set key):
-```{"type": "response", "success": false, "error": "unknown set key", "value": "the-offending-key"}```
-
-
-### Run specific function / command (`cmd`)
-Request (run a named command):
-```{"type": "cmd", "cmd": "lightTest"}```
-Response (success):
-```{"type": "response", "success": true, "result": "pwmTest started"}```
-Response (unknown cmd):
-```{"type": "response", "success": false, "error": "unknown cmd", "value": "badcmd"}
+```json
+{"success": false, "error": "unknown key: light.9"}
 ```
-Valid commands:
-```{"type": "cmd", "cmd": "lightTest"}```
-```{"type": "cmd", "cmd": "lightOff"}```
-```{"type": "cmd", "cmd": "lightOn"}```
-```{"type": "cmd", "cmd": "wipe"}```
 
+---
+
+### Set values (`/set`)
+Request body is a JSON object. Multiple keys can be set in a single request and are processed sequentially.
+
+Request (set channel 1):
+```
+POST /set
+{"light.1": 128}
+```
+Response (success):
+```json
+{"success": true}
+```
+
+Request (set multiple channels):
+```
+POST /set
+{"light.1": 128, "light.2": 255, "wiper": 90}
+```
+Response (success):
+```json
+{"success": true}
+```
+
+Error (unknown key):
+```json
+{"success": false, "error": "unknown key: light.9"}
+```
+
+---
+
+### Run a command (`/cmd`)
+Request body contains a `cmd` string and an optional `params` object.
+
+Request (no params):
+```
+POST /cmd
+{"cmd": "lightOn"}
+```
+Response (success):
+```json
+{"success": true, "cmd": "lightOn"}
+```
+
+Request (with params):
+```
+POST /cmd
+{"cmd": "setAll", "params": {"value": 200}}
+```
+Response (success):
+```json
+{"success": true, "cmd": "setAll"}
+```
+
+Error (unknown command):
+```json
+{"success": false, "error": "unknown cmd: badcmd"}
+```
+
+Valid commands:
+```
+lightOn      — set all lights to half brightness
+lightOff     — turn all lights off
+lightTest    — ramp all lights from 0 to full brightness
+wipe         — sweep wiper servo 0° → 180° → 0°
+setAll       — set all light channels to a value  (requires params: {"value": 0-255})
+```
+
+---
+
+## Valid keys
+
+| Key       | Range   | Description  |
+|-----------|---------|--------------|
+| `light.1` | 0–255   | LED channel 0 |
+| `light.2` | 0–255   | LED channel 1 |
+| `light.3` | 0–255   | LED channel 2 |
+| `wiper`   | 0–180   | Wiper servo position in degrees |
+
+---
 
 ## Errors
-### Unknown message type
-If `type` is not recognized the device responds with:
-```{"type": "response", "success": false, "error": "unknown message type", "value": "<the original type>"}```
-### Malformed Payload
-If the incoming payload cannot be parsed the device replies with:
-```{"type": "response", "success": false, "error": "invalid JSON payload"}```
+All error responses follow the same shape:
+```json
+{"success": false, "error": "<description>"}
+```
+
+| Error                  | Cause                                      |
+|------------------------|--------------------------------------------|
+| `invalid JSON`         | Request body could not be parsed           |
+| `expected array`       | `/get` body was not a JSON array           |
+| `expected object`      | `/set` body was not a JSON object          |
+| `missing cmd`          | `/cmd` body had no `cmd` field             |
+| `unknown key: <key>`   | Key not handled by any provider            |
+| `unknown cmd: <cmd>`   | Command not recognised                     |
+| `not found`            | No route matched the requested path        |
