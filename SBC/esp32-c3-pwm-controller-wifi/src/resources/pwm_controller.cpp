@@ -86,7 +86,7 @@ void PwmController::wipe(){
       setChannel(WIPER_CHANNELS[i], a);
       delay(20); // Wait wait
     }
-    for (uint8_t a = 180; a >= 0 a--){
+    for (uint8_t a = 180; a >= 0; a--){
       setChannel(WIPER_CHANNELS[i], a);
       delay(20); // Wait wait
     }

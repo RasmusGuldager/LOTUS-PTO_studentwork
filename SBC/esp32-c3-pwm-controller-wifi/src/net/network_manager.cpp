@@ -2,7 +2,7 @@
 #include "net/network_manager.h"
 
 // Only compile the chosen communication method
-#if defined(COMM_ETHERNET)
+#if defined(TRANSPORT_ETHERNET)
   #include "net/ethernet_interface.h"
 #else
   #include "net/wifi_interface.h"
@@ -11,7 +11,7 @@
 NetworkManager networkManager;
 
 NetworkManager::NetworkManager() {
-#if defined(COMM_ETHERNET)
+#if defined(TRANSPORT_ETHERNET)
   _transport = std::unique_ptr<INetworkTransport>(new EthernetTransport());
 #else
   _transport = std::unique_ptr<INetworkTransport>(new WiFiTransport());

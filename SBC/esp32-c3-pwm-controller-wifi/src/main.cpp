@@ -32,9 +32,6 @@ void setup() {
 
   // register providers so MessageHandler can dispatch messages to relevant modules
   msgHandler.addProvider(&pwmProvider);
-
-  // start TCP server
-  server->begin();
 }
 
 void loop() {
