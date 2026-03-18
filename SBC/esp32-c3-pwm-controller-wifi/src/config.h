@@ -7,7 +7,7 @@
 #include <Arduino.h>
 namespace Config {
   //-------------------OTA configuration-----------------------//
-  static const char* HOSTNAME = "Lotus-Controller";
+  static const char* HOSTNAME = "Lotus-Controller01";
   static const char* OTAAUTH = "LotusOTA";
 
   //-------------------Network configuration-----------------------//
@@ -15,8 +15,8 @@ namespace Config {
   constexpr unsigned long TIMEOUT_MS = 100000;
 
   // WIFI SPECIFIC CONFIGURATION (Only used when 'TRANSPORT_WIFI' is set)
-  static const char* WIFI_SSID = "Installation02";
-  static const char* WIFI_PASS = "HomeIOTstuff";
+  static const char* WIFI_SSID = "LOTUS-PTO-server";
+  static const char* WIFI_PASS = "lotusnet123";
 
   // Ethernet specific configuration (Only used when 'TRANSPORT_ETH' is set)
   static constexpr bool ETH_USE_DHCP = true;

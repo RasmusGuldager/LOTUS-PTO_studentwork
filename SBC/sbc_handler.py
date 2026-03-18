@@ -13,8 +13,9 @@ class SBC:
         self.reconnect_interval = reconnect_interval
         self.heartbeat_interval = heartbeat_interval
         self.verbose = verbose
-
-        self._connected = False
+        # _connected/explicit connect/disconnect are no longer required;
+        # we use HTTP requests on demand and run a lightweight ping loop.
+        self._last_ping_ok = False
         self._stop_event = threading.Event()
         self._heartbeat_thread = None
 
@@ -38,8 +39,9 @@ class SBC:
             return res.json()
         except requests.RequestException as e:
             self.logger.error(f"GET {path} failed: {e}")
-            self._handle_disconnect()
-            return None
+            # mark last ping as failed; heartbeat loop will report
+            self._last_ping_ok = False
+            return {"success": False, "error": str(e)}
 
     def _post(self, path: str, payload: dict) -> Optional[dict]:
         try:
@@ -52,60 +54,123 @@ class SBC:
             return res.json()
         except requests.RequestException as e:
             self.logger.error(f"POST {path} failed: {e}")
-            self._handle_disconnect()
-            return None
+            # mark last ping as failed; heartbeat loop will report
+            self._last_ping_ok = False
+            return {"success": False, "error": str(e)}
+
+    # -------------------------------------------------------------------------
+    # Device key/command mapping helpers
+    # -------------------------------------------------------------------------
+    def _set_key_for(self, key: str) -> str:
+        """Return the key name expected by device for POST /set.
+        Accepts either 'light.1' / 'light.2' / 'light.3' or 'led0' / 'led1' / 'led2',
+        and converts to the device's set-key format (ledN or wiper0).
+        """
+        if key.startswith("light."):
+            # light.1 -> led0, light.2 -> led1, light.3 -> led2
+            try:
+                idx = int(key.split('.', 1)[1]) - 1
+                return f"led{idx}"
+            except Exception:
+                return key
+        if key == "wiper":
+            return "wiper0"
+        return key
+
+    def _get_key_for(self, key: str) -> str:
+        """Return the key name expected by device for POST /get.
+        Accepts either 'led0' / 'led1' / 'led2' or 'light.1' etc and returns
+        the get-key format (light.N or wiper).
+        """
+        if key.startswith("led"):
+            try:
+                idx = int(key[3:])
+                return f"light.{idx+1}"
+            except Exception:
+                return key
+        if key.startswith("wiper"):
+            return "wiper"
+        return key
 
     # -------------------------------------------------------------------------
     # Public API
     # -------------------------------------------------------------------------
-    def connect(self) -> None:
-        """Ping the device until it responds, then start the heartbeat."""
-        while not self._stop_event.is_set():
-            self.logger.info(f"Attempting connection to {self.name}: {self.ip}:{self.port}")
-            data = self._get("/ping")
-            if data and data.get("type") == "pong":
-                self._connected = True
-                self.logger.info(f"Connection to {self.name} successful")
-                self._start_heartbeat()
-                return
-            self.logger.info(f"Connection to {self.name} failed, retrying in {self.reconnect_interval}s")
-            time.sleep(self.reconnect_interval)
+    def start_heartbeat(self) -> None:
+        """Start a background thread that periodically GETs /ping.
+
+        This replaces persistent connection/reconnect logic — we just
+        poll the device and update `self._last_ping_ok`.
+        """
+        if self._heartbeat_thread and self._heartbeat_thread.is_alive():
+            return
+        self._stop_event.clear()
+        self._heartbeat_thread = threading.Thread(target=self._heartbeat_loop, daemon=True)
+        self._heartbeat_thread.start()
 
     def disconnect(self) -> None:
+        # Stop the heartbeat loop (keeps interface name for compatibility)
         self._stop_event.set()
-        self._connected = False
+        if self._heartbeat_thread:
+            self._heartbeat_thread.join(timeout=1)
+        self._last_ping_ok = False
 
     def is_connected(self) -> bool:
-        return self._connected
+        return self._last_ping_ok
 
     def set_values(self, keyvals: dict) -> Optional[dict]:
-        """POST /set  — e.g. set_values({'led0': 128, 'led1': 255})"""
-        if not self._connected:
-            self.logger.error("Unable to send — not connected")
-            return None
-        reply = self._post("/set", keyvals)
+        """POST /set — accepts keys like 'light.1' or 'led0'; converts to device format."""
+        # No persistent connection required; try sending regardless
+        payload = {}
+        for k, v in keyvals.items():
+            payload[self._set_key_for(k)] = v
+
+        reply = self._post("/set", payload)
         if reply and not reply.get("success"):
             self.logger.error(f"set_values error: {reply.get('error')}")
         return reply
 
     def get_values(self, keys: list) -> Optional[dict]:
-        """POST /get  — e.g. get_values(['led0', 'wiper0'])"""
-        if not self._connected:
-            self.logger.error("Unable to send — not connected")
+        """POST /get — accepts keys like 'led0' or 'light.1' and returns normalized data.
+
+        Returns: {'success': True, 'data': {<requested_key>: value, ...}}
+        """
+        # No persistent connection required; try sending regardless
+
+        # Map requested keys to device get-keys
+        requested = list(keys)
+        device_keys = [self._get_key_for(k) for k in requested]
+
+        reply = self._post("/get", device_keys)
+        if not reply:
             return None
-        reply = self._post("/get", keys)
-        if reply and not reply.get("success"):
+        if not reply.get("success"):
             self.logger.error(f"get_values error: {reply.get('error')}")
-        return reply
+            return reply
+
+        data = reply.get("data", {})
+        # Map device-returned keys back to the caller's requested keys
+        mapped = {}
+        for orig, dk in zip(requested, device_keys):
+            if dk in data:
+                mapped[orig] = data[dk]
+            else:
+                mapped[orig] = None
+
+        return {"success": True, "data": mapped}
 
     def send_command(self, cmd: str, params: dict = None) -> Optional[dict]:
         """POST /cmd  — e.g. send_command('lightOn')"""
-        if not self._connected:
-            self.logger.error("Unable to send — not connected")
-            return None
+        # No persistent connection required; try sending regardless
         body = {"cmd": cmd}
         if params:
             body["params"] = params
+
+        # Basic validation for known commands
+        if cmd == "setAll":
+            if not params or "value" not in params:
+                self.logger.error("send_command error: setAll requires params {'value': <0-255>}" )
+                return {"success": False, "error": "missing params: value"}
+
         reply = self._post("/cmd", body)
         if reply and not reply.get("success"):
             self.logger.error(f"send_command error: {reply.get('error')}")
@@ -119,26 +184,27 @@ class SBC:
     # Heartbeat
     # -------------------------------------------------------------------------
     def _start_heartbeat(self) -> None:
-        self._heartbeat_thread = threading.Thread(
-            target=self._heartbeat_loop, daemon=True
-        )
-        self._heartbeat_thread.start()
+        # kept for compatibility; start via `start_heartbeat()` instead
+        self.start_heartbeat()
 
     def _heartbeat_loop(self) -> None:
-        while self._connected and not self._stop_event.is_set():
-            time.sleep(self.heartbeat_interval)
+        while not self._stop_event.is_set():
             data = self._get("/ping")
-            if not data or data.get("type") != "pong":
-                self.logger.warning("Heartbeat failed")
-                self._handle_disconnect()
-                return
+            if data and data.get("type") == "pong":
+                if not self._last_ping_ok:
+                    self.logger.info("Ping successful")
+                self._last_ping_ok = True
+            else:
+                if self._last_ping_ok:
+                    self.logger.warning("Ping failed")
+                self._last_ping_ok = False
+            time.sleep(self.heartbeat_interval)
 
     def _handle_disconnect(self) -> None:
-        if self._connected:
-            self.logger.error("Disconnected — reconnecting...")
-        self._connected = False
-        if not self._stop_event.is_set():
-            self.connect()
+        # kept for compatibility with older callers; simply mark as not ok
+        if self._last_ping_ok:
+            self.logger.error("Disconnected")
+        self._last_ping_ok = False
 
 
 # -----------------------------------------------------------------------------
@@ -148,12 +214,12 @@ if __name__ == "__main__":
     ip = input("SBC IP address: ").strip()
     sbc = SBC(ip, port=80, verbose=True)
     try:
-        print("Connecting...")
-        sbc.connect()
-        print("Connected. Commands:")
-        print("  set <key> <value>   — e.g.  set led0 128")
-        print("  get <key>           — e.g.  get led0")
-        print("  cmd <command>       — e.g.  cmd lightOn")
+        print("Starting heartbeat...")
+        #sbc.start_heartbeat()
+        print("Ready. Commands:")
+        print("  set <key> <value>   — e.g.  set light.1 128  (or set led0 128)")
+        print("  get <key>           — e.g.  get light.1  (or get led0)")
+        print("  cmd <command> [arg] — e.g.  cmd lightOn  OR  cmd setAll 200")
         print("  status")
         print("  quit")
 
@@ -182,7 +248,17 @@ if __name__ == "__main__":
             elif action == "get" and len(parts) == 2:
                 print(sbc.get_values([parts[1]]))
             elif action == "cmd" and len(parts) >= 2:
-                print(sbc.send_command(parts[1]))
+                cmd_name = parts[1]
+                # support: cmd setAll 200
+                if cmd_name == "setAll" and len(parts) >= 3:
+                    try:
+                        v = int(parts[2])
+                    except ValueError:
+                        print("Invalid value for setAll; must be integer 0-255")
+                        continue
+                    print(sbc.send_command(cmd_name, {"value": v}))
+                else:
+                    print(sbc.send_command(cmd_name))
             elif action == "status":
                 print(sbc.status())
             else:
