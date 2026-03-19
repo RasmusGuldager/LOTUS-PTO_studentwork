@@ -30,7 +30,7 @@ PYTHON_BIN="./venv/bin/python3"
 # Keep retrying until
 until [ $count -ge $MAX_RETRIES ]; do
     # Image acquisition begins
-    $PYTHON_BIN capture.py usb_cam --output_path $OUTPUTDIR -c action bright -c balance dim -c longExposure bright
+    $PYTHON_BIN capture.py usb_cam --output_path $OUTPUTDIR -c prototypeLongExp bright -c prototypeLongExp dim 
     break
 
     count=$((count+1))

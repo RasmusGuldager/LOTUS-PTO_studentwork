@@ -5,7 +5,7 @@ The lighting and camera parameters are called by the names specified in the capt
 To acquire from several rigs, this script should be executed for every camera setup
 '''
 
-import argparse, yaml, logging, traceback
+import argparse, yaml, logging, traceback, time
 #Local imports
 from Camera.camera_control import CameraControl
 from SBC.sbc_handler import SBC
@@ -47,12 +47,19 @@ if args.c is not None:
         camera_controller = CameraControl(ip=rig["camera"]["ip"], name=args.rig, output_folder=args.output_path)
         micro_controller = SBC(rig["sbc"]["ip"], rig["sbc"]["port"])
         capture_logger.info(f"{len(args.c)} configs provided")
+
+        #Wipe the lense
+        micro_controller.send_command("wipe")
+        time.sleep(5)
+
         for c in args.c:
+            capture_logger.info(f"Current Camera temperature {camera_controller.camera.DeviceTemperature.Value}")
             cam_config_name = c[0]
             light_config_name = c[1]
             capture_logger.info(f"Capturing an image with [{cam_config_name}] [{light_config_name}]")
             #Initiate light
             micro_controller.set_values(__CONFIG__["light_configs"][light_config_name])
+            time.sleep(5)
             #Set camera settings
             camera_controller.load_config(__CONFIG__["camera_configs"][cam_config_name])
             #Capture image
@@ -61,7 +68,7 @@ if args.c is not None:
         #Close out
         micro_controller.send_command("lightOff")
         camera_controller.close()
-        micro_controller.disconnect()
+        #micro_controller.disconnect()
     except:
         #Format stacktraces into a single line with | markers to indicate linebreaks
         err = traceback.format_exc().replace("\n", " | ")
@@ -81,7 +88,7 @@ else:
         #close
         micro_controller.send_command("lightOff")
         camera_controller.close()
-        micro_controller.disconnect()
+        #micro_controller.disconnect()
     except Exception:
         #Format stacktraces into a single line with | markers to indicate linebreaks
         err = traceback.format_exc().replace("\n", " | ")

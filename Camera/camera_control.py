@@ -70,12 +70,21 @@ class CameraControl:
         self.camera_mutex = threading.Lock()
         self.name = name
 
+	# Converter
+        self.converter = pylon.ImageFormatConverter()
+        self.converter.OutputPixelFormat = pylon.PixelType_BGR8packed
+        self.converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
+
         # Setup config
         if config:
             self.load_config(config)
 
         if interval is not None:
             self.run_in_thread(self.auto_pic_snapper, interval)
+
+    def convert_to_bgr(self, grab_result):
+        pixel_format = grab_result.PixelType
+        return self.converter.Convert(grab_result).GetArray()
 
     def snap_pic(self, cam_config_name="factory", light_config_name="NA") -> None:
         """
@@ -98,7 +107,7 @@ class CameraControl:
                 )
 
             if grabResult.GrabSucceeded():
-                img = grabResult.Array
+                img = self.convert_to_bgr(grabResult)
                 timestamp = time.strftime("%Y%m%d-%H%M%S")
                 filename = f"{timestamp}_{self.name}_{cam_config_name}_{light_config_name}.png"
                 full_path = os.path.join(self.output_folder, filename)
