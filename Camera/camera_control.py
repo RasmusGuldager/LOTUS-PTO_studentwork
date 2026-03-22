@@ -289,6 +289,7 @@ class CameraControl:
             video_settings = self.config["video_settings"]
             lighting_settings = self.config["lighting_settings"]
             auto_settings = self.config["auto_settings"]
+            image_processing_settings = self.config["image_processing_settings"]
 
             # Image settings
             self.camera.Width.Value = image_settings["width"]
@@ -354,9 +355,39 @@ class CameraControl:
             else:
                 raise ValueError("Invalid pixel_format value in config.yaml")
             self.logger.info("Camera settings updated.")
+            
+
+            # Image processing settings
+
+            color_space = image_processing_settings["color_space"].lower()
+            if color_space == "off":
+                self.camera.BslColorSpace.Value = "Off"
+            elif color_space == "srgb":
+                self.camera.BslColorSpace.Value = "sRgb"
+            else:
+                raise ValueError("Invalid color_space value in config.yaml")
+
+            white_balance = image_processing_settings["white_balance"].lower()
+            if white_balance == "off":
+                self.camera.BalanceWhiteAuto.Value = "Off"
+            elif white_balance == "once":
+                self.camera.BalanceWhiteAuto.Value = "Once"
+            elif white_balance == "continuous":
+                self.camera.BalanceWhiteAuto.Value = "Continuous"
+            else:
+                raise ValueError("Invalid white_balance value in config.yaml")
+
+            LUT_enable = image_processing_settings["LUT_enable"]
+            if LUT_enable is True:
+                self.camera.LUTEnable.Value = True
+            elif LUT_enable is False:
+                self.camera.LUTEnable.Value = False
+            else:
+                raise ValueError("Invalid LUT_enable value in config.yaml, must be boolean")
+
         except Exception as e:
             self.logger.error(f"Error updating settings: {e}")
-            self.try_reconnect()
+            #self.try_reconnect()
 
     @staticmethod
     def run_in_thread(func, *args) -> threading.Thread:

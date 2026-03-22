@@ -1,26 +1,31 @@
 DEFAULT: 
   camera_config: &default_camera_settings # Default settings that are inherited by all others
     image_settings: &default_image_settings
-      width: 3548                   # Maks er 3548
-      height: 3552                  # Maks er 3552
-      offset_x: 0 
-      offset_y: 0
+      width: 1920                   # Maks er 3548
+      height: 1080                  # Maks er 3552
+      offset_x: 600 
+      offset_y: 1400
       pixel_format: "brg8" #Debayered using Baslers layer
     video_settings: &default_video_settings
       enable_acquisition: "on"
       acquisition_fps: 30
     lighting_settings: &default_lighting_settings
-      exposure_time: 15000.0        # mikrosekunder 
+      exposure_time: 35000.0        # mikrosekunder 
       gain: 1.0
     auto_settings: &default_auto_settings
       auto_brightness_target: 0.5   # Mellem 0.0 og 1.0
       auto_function: "min_gain"     # "min_gain", eller "min_exposure"
-      auto_exposure: "continuous"   # off, once, continuous
+      auto_exposure: "off"   # off, once, continuous
       auto_exposure_lower_limit: 1.0
       auto_exposure_upper_limit: 100000.0
       auto_gain: "off"       # off, once, continuous
       auto_gain_lower_limit: 0
       auto_gain_upper_limit: 24
+    image_processing_settings: &default_imageprocessing_settings
+      color_space: "off"     # off or sRGB (nonlinear / gamma)
+      white_balance: "off"   # off, once or continuous
+      LUT_enable: false      # true or false
+
   light_config: &default_light_settings
     light.1: 128 # Strength in 8bit values (0-255)
     light.2: 128 # Strength in 8bit values (0-255)
