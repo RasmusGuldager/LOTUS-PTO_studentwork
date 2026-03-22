@@ -1,7 +1,7 @@
 venv/
 .venv
 __pycache__/
-Captured_images/
+captured_images/
 User_images/
 camera_system.log
 .vscode/
