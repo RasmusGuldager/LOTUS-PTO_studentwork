@@ -8,7 +8,7 @@ from Camera.camera_control import CameraControl
 
 class Main:
     def __init__(self, auto_interval=None) -> None:
-        self.camera_control = CameraControl(auto_interval=auto_interval)
+        self.camera_control = CameraControl(interval=auto_interval)
 
         self.logger = self.logging_setup()
         self.logger.info("Camera system initialized.")
@@ -41,7 +41,7 @@ class Main:
                 elif user_input == "s":
                     self.camera_control.stream()
                 elif user_input == "u":
-                    self.camera_control.update_settings()
+                    self.camera_control.load_config(config="config.yaml")
                 elif user_input == "q":
                     break
                 else:
