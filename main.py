@@ -37,7 +37,7 @@ class Main:
                     "Enter 'p' to take a picture, 's' to start live view, 'u' to update settings, or 'q' to quit: "
                 )
                 if user_input == "p":
-                    self.camera_control.snap_pic(user=True)
+                    self.camera_control.manual_capture()
                 elif user_input == "s":
                     self.camera_control.stream()
                 elif user_input == "u":
