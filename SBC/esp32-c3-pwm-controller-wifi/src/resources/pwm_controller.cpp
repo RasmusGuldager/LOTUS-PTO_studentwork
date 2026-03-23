@@ -163,10 +163,10 @@ bool PwmProvider::handleGet(const char* key, JsonDocument& reply) {
 }
 
 bool PwmProvider::handleCmd(const char* cmd, const JsonVariant& params, JsonDocument& reply) {
-  if (strcmp(cmd, "lightTest") == 0) { _pwm.lightTest(); }
-  else if (strcmp(cmd, "lightOff") == 0) { _pwm.lightOff(); }
-  else if (strcmp(cmd, "lightOn")  == 0) { _pwm.lightOn();  }
-  else if (strcmp(cmd, "wipe")     == 0) { _pwm.wipe();     }
+  if (strcmp(cmd, "lightTest") == 0) { _pwm.lightTest(); return true;}
+  else if (strcmp(cmd, "lightOff") == 0) { _pwm.lightOff(); return true;}
+  else if (strcmp(cmd, "lightOn")  == 0) { _pwm.lightOn(); return true;}
+  else if (strcmp(cmd, "wipe")     == 0) { _pwm.wipe(); return true;}
   else if (strcmp(cmd, "setAll")   == 0) {
     _pwm.setAll(params["value"].as<uint8_t>());
   }
