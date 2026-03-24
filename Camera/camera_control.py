@@ -34,7 +34,7 @@ __PIXEL_FORMAT_MAP__ = {
 }
 
 class CameraControl:
-    def __init__(self, config=None, ip=None, interval=None, logger=None, name="noname", output_folder="./captured_images") -> None:
+    def __init__(self, config=None, ip=None, interval=None, logger=None, name="noname", output_folder="./captured_images", log_level=logging.INFO) -> None:
         #Instansiate logger or accept passed logger
         if logger:
             self.logger = logger
@@ -46,10 +46,10 @@ class CameraControl:
         os.makedirs(self.output_folder, exist_ok=True)
 
         #Mark initiation
-        self.logger.info(f"Initialized Camera Controller {name}")
+        self.logger.debug(f"Initialized Camera Controller {name}")
         logging.basicConfig(
-            level=logging.INFO,
-            format="[%(levelname)s] (%(name)s) %(message)s"
+            level=log_level,
+            format=",[%(levelname)s],[%(name)s],%(message)s" #Leading comma as Linux Timestamps the stdout
         )
 
         # Get camera
@@ -112,7 +112,7 @@ class CameraControl:
                 filename = f"{timestamp}_{self.name}_{cam_config_name}_{light_config_name}.png"
                 full_path = os.path.join(self.output_folder, filename)
                 cv2.imwrite(full_path, img)
-                self.logger.info(f"Auto saved image as {full_path}")
+                self.logger.debug(f"Auto saved image as {full_path}")
 
             else:
                 self.logger.error("Failed to grab image.")
@@ -141,7 +141,7 @@ class CameraControl:
                 #converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
 
                 print("Live view kører... Tryk på 'q' for at afslutte.")
-                self.logger.info("Live view started.")
+                self.logger.debug("Live view started.")
 
                 prev_time = time.time()
 
@@ -178,7 +178,7 @@ class CameraControl:
 
                         # Stop hvis brugeren trykker på 'q'
                         if cv2.waitKey(1) & 0xFF == ord("q"):
-                            self.logger.info("Live view stopped by user.")
+                            self.logger.debug("Live view stopped by user.")
                             break
                     else:
                         self.logger.error("Failed to grab image (stream).")
@@ -205,11 +205,11 @@ class CameraControl:
             TimeoutException: If the camera fails to return a frame within 5000ms.
         """
 
-        self.logger.info(f"Auto picture snapper started with interval {interval} seconds.")
+        self.logger.debug(f"Auto picture snapper started with interval {interval} seconds.")
         
         while True:
             self.snap_pic()
-            self.logger.info(f"Captured image at: {time.strftime("%Y%m%d-%H%M%S")}")
+            self.logger.debug(f"Captured image at: {time.strftime("%Y%m%d-%H%M%S")}")
             time.sleep(interval)
 
     def manual_capture(self):
@@ -233,7 +233,7 @@ class CameraControl:
                         filename = f"{timestamp}_{self.name}_NA_NA.png"
                         full_path = os.path.join(self.output_folder, filename)
                         cv2.imwrite(full_path, img)
-                        self.logger.info(f"User saved image as {full_path}")
+                        self.logger.debug(f"User saved image as {full_path}")
 
                     elif user_input == "v":
                         cv2.imshow("Captured Image", img)

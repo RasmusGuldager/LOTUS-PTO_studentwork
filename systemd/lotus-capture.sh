@@ -14,23 +14,23 @@ LOGFILE="$LOGDIR/$(date +%Y-%m-%d).log"
 
 # Setup Logging function (to collate with python)
 log_system() {
-    echo "[SYSTEM] $*"
+    echo ",[SYSTEM],$*"
 }
 
 # Apply logging to all stdouts (Bash and Python)
-exec > >(awk '{ print strftime("%Y-%m-%d %H:%M:%S"), $0; fflush(); }' >> "$LOGFILE") 2>&1
+exec > >(awk '{ print strftime("%Y-%m-%d %H:%M:%S"),$0; fflush(); }' >> "$LOGFILE") 2>&1
 
 # Start logging service
-log_system "Started routine capture service at: $(date '+%Y-%m-%d %H:%M:%S')"
+log_system "Routine capture service started"
 
 # Set cwd and python env path
-cd /home/aau/LOTUS-PTO_studentwork
+cd /home/aau/LOTUS-PTO_studentwork/
 PYTHON_BIN="./venv/bin/python3"
 
 # Keep retrying until
 until [ $count -ge $MAX_RETRIES ]; do
     # Image acquisition begins
-    $PYTHON_BIN capture.py usb_cam --output_path $OUTPUTDIR -c prototypeLongExp bright -c prototypeLongExp dim 
+    $PYTHON_BIN capture.py usb_cam --output_path $OUTPUTDIR -c prototypeLongExp bright -c prototypeLongExp dim
     break
 
     count=$((count+1))

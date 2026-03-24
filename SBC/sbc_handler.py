@@ -22,7 +22,7 @@ class SBC:
         self.logger = logging.getLogger(__name__)
         logging.basicConfig(
             level=logging.INFO,
-            format="[%(levelname)s] (%(name)s) %(message)s"
+            format=",%(levelname)s,%(name)s,%(message)s" #Leading comma as Linux Timestamps the stdout
         )
 
     # -------------------------------------------------------------------------
@@ -192,7 +192,7 @@ class SBC:
             data = self._get("/ping")
             if data and data.get("type") == "pong":
                 if not self._last_ping_ok:
-                    self.logger.info("Ping successful")
+                    self.logger.debug("Ping successful")
                 self._last_ping_ok = True
             else:
                 if self._last_ping_ok:

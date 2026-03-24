@@ -5,7 +5,7 @@ The lighting and camera parameters are called by the names specified in the capt
 To acquire from several rigs, this script should be executed for every camera setup
 '''
 
-import argparse, yaml, logging, traceback, time
+import argparse, yaml, logging, traceback, time, sys
 #Local imports
 from Camera.camera_control import CameraControl
 from SBC.sbc_handler import SBC
@@ -14,82 +14,130 @@ __CONFIG__ = "./config.yaml"
 with open(__CONFIG__, 'r') as f:
     __CONFIG__ = yaml.safe_load(f)
 
+
+__log_level_map__={
+    "debug": logging.DEBUG,
+    "info": logging.INFO,
+    "warning": logging.WARNING,
+    "error": logging.ERROR,
+    "critical": logging.CRITICAL,
+}
+
 parser = argparse.ArgumentParser("LOTUS-PTO Camera Rig capture")
 parser.add_argument(dest='rig', help="Choice of camera to capture from", choices=__CONFIG__["setups"].keys())
 parser.add_argument('-c', nargs=2, action='append', help="Provide the name of a camera config followed by the name of a lighting config [See available configs with --list_configs]")
 parser.add_argument('--list_configs', action='store_true', help="List all camera and lighting configs by name")
 parser.add_argument('--output_path', type=str, default="./captured_data/")
+parser.add_argument('--disable_camera', action="store_true", default=False, help="Disable camera capture")
+parser.add_argument('--disable_sbc', action="store_true", default=False, help="Disable microcontroller calls")
+parser.add_argument('--log_level', default="debug", choices=__log_level_map__.keys(), help="Level of verbosity of the logger")
 args = parser.parse_args()
 
 #Setup logger
 capture_logger = logging.getLogger(__name__)
 logging.basicConfig(
-    level=logging.INFO,
-    format="[%(levelname)s] (%(name)s) %(message)s"
+    level=__log_level_map__[args.log_level],
+    format=",[%(levelname)s],[%(name)s],%(message)s" #Leading comma as Linux Timestamps the stdout
     )
 
 if args.list_configs:
-    capture_logger.info("#### CAMERA CONFIGS ####")
+    capture_logger.debug("#### CAMERA CONFIGS ####")
     for cam_config in list(__CONFIG__["camera_configs"].keys()):
-        capture_logger.info(cam_config)
-    capture_logger.info("### LIGHTING CONFIGS ###")
+        capture_logger.debug(cam_config)
+    capture_logger.debug("### LIGHTING CONFIGS ###")
     for lit_config in list(__CONFIG__["light_configs"].keys()):
-        capture_logger.info(lit_config)
+        capture_logger.debug(lit_config)
 
 # Get setup specific config
 rig = __CONFIG__["setups"][args.rig]
-capture_logger.info(f"Beginning image acquisition: {args.rig}")
+capture_logger.debug(f"Initializing setup: {args.rig}")
+
+#Initiate camera controller
+try:
+    if args.disable_camera:
+        camera_controller = None
+        capture_logger.warning(f"'--disable_camera' set ({args.disable_camera}): Camera control is disabled")
+    else:
+        camera_controller = CameraControl(ip=rig["camera"]["ip"], name=args.rig, output_folder=args.output_path, log_level=__log_level_map__[args.log_level])
+except:
+    #Format stacktraces into a single line with | markers to indicate linebreaks
+    err = traceback.format_exc().replace("\n", "|")
+    capture_logger.error(err)
+    capture_logger.error("Aborting...")
+    sys.exit()
+
+try:
+    #Initiate microcontroller controller 
+    if args.disable_sbc:
+        micro_controller = None   
+    else:
+        micro_controller = SBC(rig["sbc"]["ip"], rig["sbc"]["port"])
+        capture_logger.warning(f"'--disable_sbc' set ({args.disable_sbc}): Microcontroller communication is disabled")
+except:
+    #Format stacktraces into a single line with | markers to indicate linebreaks
+    err = traceback.format_exc().replace("\n", "|")
+    capture_logger.error(err)
+    capture_logger.error("Aborting...")
+    sys.exit()
 
 #Check and report of 
 if args.c is not None:
     try:
-        #Initiate controllers
-        camera_controller = CameraControl(ip=rig["camera"]["ip"], name=args.rig, output_folder=args.output_path)
-        micro_controller = SBC(rig["sbc"]["ip"], rig["sbc"]["port"])
-        capture_logger.info(f"{len(args.c)} configs provided")
-
+        capture_logger.debug(f"{len(args.c)} configs provided")
         #Wipe the lense
-        micro_controller.send_command("wipe")
-        time.sleep(5)
+        if micro_controller:
+            capture_logger.debug(f"Sending command to wipe lense")
+            micro_controller.send_command("wipe")
+            time.sleep(5)
 
         for c in args.c:
-            capture_logger.info(f"Current Camera temperature {camera_controller.camera.DeviceTemperature.Value}")
             cam_config_name = c[0]
             light_config_name = c[1]
-            capture_logger.info(f"Capturing an image with [{cam_config_name}] [{light_config_name}]")
-            #Initiate light
-            micro_controller.set_values(__CONFIG__["light_configs"][light_config_name])
-            time.sleep(5)
-            #Set camera settings
-            camera_controller.load_config(__CONFIG__["camera_configs"][cam_config_name])
-            #Capture image
-            camera_controller.snap_pic(cam_config_name=cam_config_name, light_config_name=light_config_name)
-            #close
+            capture_logger.debug(f"Capturing an image with [{cam_config_name}] [{light_config_name}]")
+            if micro_controller:
+                capture_logger.info(f"Current Camera temperature {camera_controller.camera.DeviceTemperature.Value}")
+                #Initiate light
+                micro_controller.set_values(__CONFIG__["light_configs"][light_config_name])
+                time.sleep(2) # Wait for microcontroller to process command
+            
+            if camera_controller:
+                #Set camera settings
+                camera_controller.load_config(__CONFIG__["camera_configs"][cam_config_name])
+                #Capture image
+                camera_controller.snap_pic(cam_config_name=cam_config_name, light_config_name=light_config_name)
+        
         #Close out
-        micro_controller.send_command("lightOff")
-        camera_controller.close()
-        #micro_controller.disconnect()
+        if micro_controller:
+            #Turn off lights
+            micro_controller.send_command("lightOff")
+            #micro_controller.disconnect() Redundant for REST api
+
+        if camera_controller:
+            camera_controller.close()
+
     except:
         #Format stacktraces into a single line with | markers to indicate linebreaks
-        err = traceback.format_exc().replace("\n", " | ")
+        err = traceback.format_exc().replace("\n", "|")
         capture_logger.error(err)
 else: 
     try:
         capture_logger.warning(f"No configs provided. A single image will be captured with default settings")
-        #Initiate controllers
-        camera_controller = CameraControl(ip=rig["camera"]["ip"], name=args.rig)
-        micro_controller = SBC(rig["sbc"]["ip"], rig["sbc"]["port"])
-        #Set camera settings
-        camera_controller.load_config(rig["camera"]["settings"])
-        #Initiate light
-        micro_controller.set_values(rig["light"])
-        #Capture image
-        camera_controller.snap_pic(cam_config_name="default", light_config_name="default")
-        #close
-        micro_controller.send_command("lightOff")
-        camera_controller.close()
-        #micro_controller.disconnect()
+        
+        if micro_controller:
+            #Initiate light
+            micro_controller.set_values(rig["light"])
+
+        if camera_controller:
+            #Set camera settings
+            camera_controller.load_config(rig["camera"]["settings"])
+            camera_controller.snap_pic(cam_config_name="default", light_config_name="default")
+            camera_controller.close()
+
+        if micro_controller:
+            micro_controller.send_command("lightOff")
+            #micro_controller.disconnect() Redundant for REST api
+        
     except Exception:
         #Format stacktraces into a single line with | markers to indicate linebreaks
-        err = traceback.format_exc().replace("\n", " | ")
+        err = traceback.format_exc().replace("\n", "|")
         capture_logger.error(err)
