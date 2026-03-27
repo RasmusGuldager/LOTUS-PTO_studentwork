@@ -695,6 +695,148 @@ def write_yaml(camera_info: dict, nodes: list[dict], output_file: str):
 
 
 # ---------------------------------------------------------------------------
+# Markdown output
+# ---------------------------------------------------------------------------
+
+def write_markdown(camera_info: dict, nodes: list[dict], output_file: str):
+    lines = []
+    rw  = sum(1 for n in nodes if n["access"] == "ReadWrite")
+    ro  = len(nodes) - rw
+
+    # ── Title & camera info ──────────────────────────────────────────────────
+    lines += [
+        f"# Basler Camera Feature Reference",
+        f"",
+        f"| Property | Value |",
+        f"|---|---|",
+        f"| Model | `{camera_info['ModelName']}` |",
+        f"| Serial Number | `{camera_info['SerialNumber']}` |",
+        f"| Device Version | `{camera_info['DeviceVersion']}` |",
+        f"| Device Class | `{camera_info['DeviceClass']}` |",
+        f"| Total Parameters | {len(nodes)} ({rw} read/write, {ro} read-only) |",
+        f"",
+    ]
+
+    # ── Table of contents ────────────────────────────────────────────────────
+    categories: dict = {}
+    for node in nodes:
+        categories.setdefault(node["category"], []).append(node)
+
+    lines += ["## Table of Contents", ""]
+    for cat_name in sorted(categories):
+        anchor = cat_name.lower().replace(" ", "-").replace("/", "").replace("(", "").replace(")", "")
+        count  = len(categories[cat_name])
+        lines.append(f"- [{cat_name}](#{anchor}) — {count} parameters")
+    lines.append("")
+
+    # ── Per-category sections ────────────────────────────────────────────────
+    ACCESS_BADGE = {
+        "ReadWrite": "![ReadWrite](https://img.shields.io/badge/access-ReadWrite-green)",
+        "ReadOnly":  "![ReadOnly](https://img.shields.io/badge/access-ReadOnly-lightgrey)",
+    }
+    TYPE_BADGE = {
+        "Float":       "![Float](https://img.shields.io/badge/type-Float-blue)",
+        "Integer":     "![Integer](https://img.shields.io/badge/type-Integer-blue)",
+        "Enumeration": "![Enum](https://img.shields.io/badge/type-Enum-purple)",
+        "Boolean":     "![Boolean](https://img.shields.io/badge/type-Boolean-orange)",
+        "String":      "![String](https://img.shields.io/badge/type-String-yellow)",
+        "Command":     "![Command](https://img.shields.io/badge/type-Command-red)",
+    }
+
+    for cat_name, items in sorted(categories.items()):
+        lines += [f"---", f"", f"## {cat_name}", f""]
+
+        for info in items:
+            name         = info["name"]
+            display_name = info["display_name"]
+            ntype        = info["type"]
+            access       = info["access"]
+            description  = info["description"] or "_No description available._"
+            current      = info["current_value"]
+            api          = info.get("pypylon_api", {})
+
+            type_badge   = TYPE_BADGE.get(ntype, f"`{ntype}`")
+            access_badge = ACCESS_BADGE.get(access, f"`{access}`")
+
+            # Parameter heading
+            lines += [
+                f"### `{name}`",
+                f"",
+                f"**{display_name}** &nbsp; {type_badge} &nbsp; {access_badge}",
+                f"",
+                f"{description}",
+                f"",
+            ]
+
+            # Details table
+            table_rows = [("Current value", f"`{current}`")]
+
+            if ntype in ("Integer", "Float") and info["min"] is not None:
+                range_str = f"`{info['min']}` → `{info['max']}`"
+                if ntype == "Integer" and info["increment"]:
+                    range_str += f" (step `{info['increment']}`)"
+                if ntype == "Float" and info["unit"]:
+                    range_str += f" {info['unit']}"
+                table_rows.append(("Range", range_str))
+
+            if info["options"]:
+                opts_md = " ".join(f"`{o}`" for o in info["options"])
+                table_rows.append(("Options", opts_md))
+
+            lines += ["| Property | Value |", "|---|---|"]
+            for k, v in table_rows:
+                lines.append(f"| {k} | {v} |")
+            lines.append("")
+
+            # pypylon API code block
+            if api:
+                lines += ["**pypylon API**", ""]
+                if ntype == "Command":
+                    lines += [
+                        "```python",
+                        f"camera.{name}.Execute()",
+                        "```",
+                    ]
+                elif ntype == "Enumeration" and info["options"]:
+                    lines += [
+                        "```python",
+                        f"# Get",
+                        f"value = camera.{name}.Value",
+                        f"",
+                        f"# Set (choose one option)",
+                    ]
+                    for opt in info["options"]:
+                        lines.append(f'camera.{name}.Value = "{opt}"')
+                    lines.append("```")
+                elif ntype == "Boolean":
+                    lines += [
+                        "```python",
+                        f"# Get",
+                        f"value = camera.{name}.Value",
+                        f"",
+                        f"# Set",
+                        f"camera.{name}.Value = True   # or False",
+                        "```",
+                    ]
+                else:
+                    lines += [
+                        "```python",
+                        f"# Get",
+                        f"value = camera.{name}.Value",
+                        f"",
+                        f"# Set",
+                        f"camera.{name}.Value = <value>",
+                        "```",
+                    ]
+                lines.append("")
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+
+    print(f"Markdown saved to: {output_file}")
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
@@ -724,9 +866,9 @@ def main():
     )
     parser.add_argument(
         "--format", "-f",
-        choices=["xml", "yaml"],
+        choices=["xml", "yaml", "markdown"],
         default="xml",
-        help="Output format: 'xml' (default) or 'yaml'",
+        help="Output format: 'xml' (default), 'yaml', or 'markdown'",
     )
     parser.add_argument(
         "--capture-only", "-c",
@@ -756,14 +898,17 @@ def main():
         return
 
     if args.output is None:
-        args.output = f"basler_camera_nodes.{args.format}"
+        ext = "md" if args.format == "markdown" else args.format
+        args.output = f"basler_camera_nodes.{ext}"
 
     camera_info, nodes = scan_camera(capture_only=args.capture_only)
 
     if args.format == "xml":
         write_xml(camera_info, nodes, args.output)
-    else:
+    elif args.format == "yaml":
         write_yaml(camera_info, nodes, args.output)
+    else:
+        write_markdown(camera_info, nodes, args.output)
 
 
 if __name__ == "__main__":
