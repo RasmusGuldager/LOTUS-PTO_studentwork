@@ -1,31 +1,30 @@
 DEFAULT: 
-  camera_config: &default_camera_settings # Default settings that are inherited by all others
-    image_settings: &default_image_settings
-      width: 3548                   # Maks er 3548
-      height: 3552                  # Maks er 3552
-      offset_x: 0 
-      offset_y: 0
-      pixel_format: "brg8" #Debayered using Baslers layer
-    video_settings: &default_video_settings
-      enable_acquisition: "on"
-      acquisition_fps: 30
-    lighting_settings: &default_lighting_settings
-      exposure_time: 35000.0        # mikrosekunder 
-      gain: 1.0
-    auto_settings: &default_auto_settings
-      auto_brightness_target: 0.5   # Mellem 0.0 og 1.0
-      auto_function: "min_gain"     # "min_gain", eller "min_exposure"
-      auto_exposure: "off"   # off, once, continuous
-      auto_exposure_lower_limit: 1.0
-      auto_exposure_upper_limit: 100000.0
-      auto_gain: "off"       # off, once, continuous
-      auto_gain_lower_limit: 0
-      auto_gain_upper_limit: 24
-    image_processing_settings: &default_imageprocessing_settings
-      color_space: "off"     # off or sRGB (nonlinear / gamma)
-      white_balance: "once"   # off, once or continuous
-      LUT_enable: false      # true or false
-
+  camera_config: &default_camera_settings # See camera_variables.md documentation
+      # Image format settings
+      Width: 3536
+      Height: 3536
+      OffsetX: 6 
+      OffsetY: 8
+      BslColorSpace: "Off"
+      PixelFormat: "BGR8"
+      LUTEnable: false
+      # Image Capture settings
+      ExposureTime: 15000.0
+      Gain: 1.0
+      gamma: 1.0
+      # Video settings
+      AcquisitionFrameRateEnable: False
+      AcquisitionFrameRate: 30
+      # Auto settings
+      AutoTargetBrightness: 0.5   # Mellem 0.0 og 1.0
+      AutoFunction: "MinimizeGain" # "MinimizeGain", eller "MinimizeExposureTime"
+      ExposureAuto: "Off"   # 'Off', 'Once', 'Continuous'
+      AutoExposureTimeLowerLimit: 1.0
+      AutoExposureTimeUpperLimit: 100000.0
+      GainAuto: "Off"       # Off,' 'Once', 'Continuous'
+      AutoGainLowerLimit: 0
+      AutoGainUpperLimit: 24
+      BalanceWhiteAuto: "Once"   # Off,' 'Once', 'Continuous'
   light_config: &default_light_settings
     light.1: 128 # Strength in 8bit values (0-255)
     light.2: 128 # Strength in 8bit values (0-255)
@@ -33,7 +32,7 @@ DEFAULT:
 
 # named hardware cofigurations for individiual rigs
 setups:
-  usb_cam:
+  usbcam:
     camera:
       ip: null
       settings: *default_camera_settings
@@ -75,60 +74,40 @@ setups:
 camera_configs:
   prototypeLongExp:
     <<: *default_camera_settings
-    lighting_settings:
-      <<: *default_lighting_settings
-      exposure_time: 25000.0
-      gain: 1.0
-    auto_settings:
-      <<: *default_auto_settings
-      auto_exposure: "off"
-      auto_gain: "off"
+    ExposureTime: 25000.0
+    ExposureAuto: "Off"
+    auto_gain: "Off"
+
   prototypeShortExp:
     <<: *default_camera_settings
-    lighting_settings:
-      <<: *default_lighting_settings
-      exposure_time: 12500.0
-      gain: 1.0
-    auto_settings:
-      <<: *default_auto_settings
-      auto_exposure: "off"
-      auto_gain: "off"
+    ExposureTime: 12500.0
+    gain: 1.0
+    ExposureAuto: "Off"
+    auto_gain: "Off"
+
   action:
     <<: *default_camera_settings
-    lighting_settings:
-      <<: *default_lighting_settings
-      exposure_time: 3500.0
-    auto_settings:
-      <<: *default_auto_settings
-      auto_exposure: "off"
-      auto_gain: "off"
-      auto_gain_upper_limit: 18
+    ExposureTime: 3500.0
+    ExposureAuto: "Off"
+    auto_gain: "Off"
+    auto_gain_upper_limit: 18
+
   balance:
     <<: *default_camera_settings
-    lighting_settings:
-      exposure_time: 15000.0
-      gain: 3.5
-    auto_settings:
-      <<: *default_auto_settings
-      auto_exposure: "off"
-      auto_gain: "off"
-    video_settings:
-      <<: *default_video_settings
-      acquisition_fps: 24
+    ExposureTime: 15000.0
+    gain: 3.5
+    ExposureAuto: "Off"
+    auto_gain: "Off"
+    AcquisitionFrameRate: 24
+
   longExposure:
     <<: *default_camera_settings
-    lighting_settings:
-      <<: *default_lighting_settings
-      exposure_time: 75000.0
-      gain: 1.0
-    auto_settings:
-      <<: *default_auto_settings
-      auto_brightness_target: 0.65
-      auto_exposure: "off"
-      auto_gain: "off"
-    video_settings:
-      <<: *default_video_settings
-      acquisition_fps: 10
+    ExposureTime: 75000.0
+    gain: 1.0
+    AutoTargetBrightness: 0.65
+    ExposureAuto: "Off"
+    auto_gain: "Off"
+    AcquisitionFrameRate: 10
 
 # Named lighting configuration presets
 light_configs:

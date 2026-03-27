@@ -70,7 +70,7 @@ class CameraControl:
         self.camera_mutex = threading.Lock()
         self.name = name
 
-	# Converter
+	    # Converter
         self.converter = pylon.ImageFormatConverter()
         self.converter.OutputPixelFormat = pylon.PixelType_BGR8packed
         self.converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
@@ -83,7 +83,7 @@ class CameraControl:
             self.run_in_thread(self.auto_pic_snapper, interval)
 
     def convert_to_bgr(self, grab_result):
-        pixel_format = grab_result.PixelType
+        PixelFormat = grab_result.PixelType
         return self.converter.Convert(grab_result).GetArray()
 
     def snap_pic(self, cam_config_name="factory", light_config_name="NA") -> None:
@@ -285,105 +285,38 @@ class CameraControl:
             raise TypeError(f"Inappropriate config type ('{type(config)}'), must be of type 'str' or 'dict'")
         
         try:    
-            image_settings = self.config["image_settings"]
-            video_settings = self.config["video_settings"]
-            lighting_settings = self.config["lighting_settings"]
-            auto_settings = self.config["auto_settings"]
-            image_processing_settings = self.config["image_processing_settings"]
+            # Image format settings
+            self.camera.Width.Value = self.config["Width"]
+            self.camera.Height.Value = self.config["Height"]
+            self.camera.OffsetX.Value = self.config["OffsetX"]
+            self.camera.OffsetY.Value = self.config["OffsetY"]
+            self.camera.PixelFormat.Value = self.config["PixelFormat"]
+            self.camera.BslColorSpace.Value = self.config["BslColorSpace"]
+            self.camera.LUTEnable.Value = self.config["LUTEnable"]
 
-            # Image settings
-            self.camera.Width.Value = image_settings["width"]
-            self.camera.Height.Value = image_settings["height"]
-            self.camera.OffsetX.Value = image_settings["offset_x"]
-            self.camera.OffsetY.Value = image_settings["offset_y"]
-
-            self.camera.ExposureTime.Value = lighting_settings["exposure_time"]
-            self.camera.Gain.Value = lighting_settings["gain"]
-
+            # Image Capture settings
+            self.camera.ExposureTime.Value = self.config["ExposureTime"]
+            self.camera.Gain.Value = self.config["Gain"]
+            
             # Video settings
-            enable_acquisition = video_settings["enable_acquisition"].lower()
-            if enable_acquisition == "on":
-                self.camera.AcquisitionFrameRateEnable.Value = True
-                self.camera.AcquisitionFrameRate.Value = video_settings["acquisition_fps"]
-            elif enable_acquisition == "off":
-                self.camera.AcquisitionFrameRateEnable.Value = False
-            else:
-                raise ValueError("Invalid enable_acquisition value in config.yaml")
+            if bool(self.config["AcquisitionFrameRateEnable"]):
+                self.camera.AcquisitionFrameRateEnable.Value = bool(self.config["AcquisitionFrameRateEnable"])
+                self.camera.AcquisitionFrameRate.Value = self.config["AcquisitionFrameRate"]
 
             # Auto settings
-            self.camera.AutoTargetBrightness.Value = auto_settings["auto_brightness_target"]
+            self.camera.AutoTargetBrightness.Value = self.config["AutoTargetBrightness"]
+            self.camera.ExposureAuto.Value = self.config["ExposureAuto"]
+            self.camera.AutoExposureTimeLowerLimit.Value = self.config["AutoExposureTimeLowerLimit"]
+            self.camera.AutoExposureTimeUpperLimit.Value = self.config["AutoExposureTimeUpperLimit"]
+            self.camera.AutoFunctionProfile.Value = self.config["AutoFunction"]
+            self.camera.GainAuto.Value = self.config["GainAuto"]
+            self.camera.AutoGainLowerLimit.Value = self.config["AutoGainLowerLimit"]
+            self.camera.AutoGainUpperLimit.Value = self.config["AutoGainUpperLimit"]
+            self.camera.BalanceWhiteAuto.Value = self.config["BalanceWhiteAuto"]
 
-            auto_exposure = auto_settings["auto_exposure"].lower()
-            if auto_exposure == "off":
-                self.camera.ExposureAuto.Value = "Off"
-            elif auto_exposure == "once":
-                self.camera.ExposureAuto.Value = "Once"
-            elif auto_exposure == "continuous":
-                self.camera.ExposureAuto.Value = "Continuous"
-            else:
-                raise ValueError("Invalid auto_exposure value in config.yaml")
+            # Log completion
+            self.logger.debug("Camera settings updated.")
 
-            self.camera.AutoExposureTimeLowerLimit.Value = auto_settings["auto_exposure_lower_limit"]
-            self.camera.AutoExposureTimeUpperLimit.Value = auto_settings["auto_exposure_upper_limit"]
-
-            auto_function = auto_settings["auto_function"].lower()
-            if auto_function == "min_gain":
-                self.camera.AutoFunctionProfile.Value = "MinimizeGain"
-            elif auto_function == "min_exposure":
-                self.camera.AutoFunctionProfile.Value = "MinimizeExposureTime"
-            else:
-                raise ValueError("Invalid auto_function value in config.yaml")
-
-            auto_gain = auto_settings["auto_gain"].lower()
-            if auto_gain == "off":
-                self.camera.GainAuto.Value = "Off"
-            elif auto_gain == "once":
-                self.camera.GainAuto.Value = "Once"
-            elif auto_gain == "continuous":
-                self.camera.GainAuto.Value = "Continuous"
-            else:
-                raise ValueError("Invalid auto_gain value in config.yaml")
-
-            self.camera.AutoGainLowerLimit.Value = auto_settings["auto_gain_lower_limit"]
-            self.camera.AutoGainUpperLimit.Value = auto_settings["auto_gain_upper_limit"]
-
-            # Pixel format
-
-            pixel_format = image_settings["pixel_format"].lower()
-            if pixel_format in __PIXEL_FORMAT_MAP__:
-                self.camera.PixelFormat.Value = __PIXEL_FORMAT_MAP__[pixel_format]
-            else:
-                raise ValueError("Invalid pixel_format value in config.yaml")
-            self.logger.info("Camera settings updated.")
-            
-
-            # Image processing settings
-
-            color_space = image_processing_settings["color_space"].lower()
-            if color_space == "off":
-                self.camera.BslColorSpace.Value = "Off"
-            elif color_space == "srgb":
-                self.camera.BslColorSpace.Value = "sRgb"
-            else:
-                raise ValueError("Invalid color_space value in config.yaml")
-
-            white_balance = image_processing_settings["white_balance"].lower()
-            if white_balance == "off":
-                self.camera.BalanceWhiteAuto.Value = "Off"
-            elif white_balance == "once":
-                self.camera.BalanceWhiteAuto.Value = "Once"
-            elif white_balance == "continuous":
-                self.camera.BalanceWhiteAuto.Value = "Continuous"
-            else:
-                raise ValueError("Invalid white_balance value in config.yaml")
-
-            LUT_enable = image_processing_settings["LUT_enable"]
-            if LUT_enable is True:
-                self.camera.LUTEnable.Value = True
-            elif LUT_enable is False:
-                self.camera.LUTEnable.Value = False
-            else:
-                raise ValueError("Invalid LUT_enable value in config.yaml, must be boolean")
 
         except Exception as e:
             self.logger.error(f"Error updating settings: {e}")
