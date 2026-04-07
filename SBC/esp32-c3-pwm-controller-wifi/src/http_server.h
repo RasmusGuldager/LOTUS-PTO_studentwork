@@ -469,21 +469,21 @@ private:
     <div class="panel-title">Lights</div>
 
     <div class="channel" id="row-led0">
-      <div class="ch-label">LED 0<span>IO02</span></div>
+      <div class="ch-label">Light 0<span>IO02</span></div>
       <input type="range" min="0" max="255" value="0" id="led0"
              oninput="onSlider('led0', this.value)">
       <div class="ch-value" id="val-led0">0</div>
     </div>
 
     <div class="channel" id="row-led1">
-      <div class="ch-label">LED 1<span>IO04</span></div>
+      <div class="ch-label">Light 1<span>IO04</span></div>
       <input type="range" min="0" max="255" value="0" id="led1"
              oninput="onSlider('led1', this.value)">
       <div class="ch-value" id="val-led1">0</div>
     </div>
 
     <div class="channel" id="row-led2">
-      <div class="ch-label">LED 2<span>IO05</span></div>
+      <div class="ch-label">Light 2<span>IO05</span></div>
       <input type="range" min="0" max="255" value="0" id="led2"
              oninput="onSlider('led2', this.value)">
       <div class="ch-value" id="val-led2">0</div>

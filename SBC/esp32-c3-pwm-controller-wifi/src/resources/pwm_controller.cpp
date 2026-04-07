@@ -131,15 +131,15 @@ void PwmController::wipe() {
 PwmProvider::PwmProvider(PwmController& pwm) : _pwm(pwm) {}
 
 bool PwmProvider::matchesKey(const char* key) const {
-  return strncmp(key, "led", 3) == 0 || strncmp(key, "wiper", 5) == 0;
+  return strncmp(key, "light", 5) == 0 || strncmp(key, "wiper", 5) == 0;
 }
 
 bool PwmProvider::handleSet(const char* key, const JsonVariant& value, JsonDocument& reply) {
   uint8_t ch = 0;
-  if      (strcmp(key, "led0")   == 0) ch = 0;
-  else if (strcmp(key, "led1")   == 0) ch = 1;
-  else if (strcmp(key, "led2")   == 0) ch = 2;
-  else if (strcmp(key, "wiper0") == 0) ch = 3;
+  if      (strcmp(key, "light.1")   == 0) ch = 0;
+  else if (strcmp(key, "light.2")   == 0) ch = 1;
+  else if (strcmp(key, "light.3")   == 0) ch = 2;
+  else if (strcmp(key, "wiper") == 0) ch = 3;
 
   _pwm.setChannel(ch, value.as<uint8_t>());
   reply["success"] = true;

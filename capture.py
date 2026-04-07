@@ -37,7 +37,7 @@ args = parser.parse_args()
 capture_logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=__log_level_map__[args.log_level],
-    format=",[%(levelname)s],[%(name)s],%(message)s" #Leading comma as Linux Timestamps the stdout
+    format=",%(levelname)s,%(name)s,%(message)s" #Leading comma as Linux Timestamps the stdout
     )
 
 if args.list_configs:
@@ -88,7 +88,6 @@ if args.c is not None:
         if micro_controller:
             capture_logger.debug(f"Sending command to wipe lense")
             micro_controller.send_command("wipe")
-            time.sleep(5)
 
         for c in args.c:
             cam_config_name = c[0]
@@ -98,7 +97,6 @@ if args.c is not None:
                 capture_logger.info(f"Current Camera temperature {camera_controller.camera.DeviceTemperature.Value}")
                 #Initiate light
                 micro_controller.set_values(__CONFIG__["light_configs"][light_config_name])
-                time.sleep(2) # Wait for microcontroller to process command
             
             if camera_controller:
                 #Set camera settings
@@ -110,7 +108,6 @@ if args.c is not None:
         if micro_controller:
             #Turn off lights
             micro_controller.send_command("lightOff")
-            #micro_controller.disconnect() Redundant for REST api
 
         if camera_controller:
             camera_controller.close()
@@ -135,7 +132,6 @@ else:
 
         if micro_controller:
             micro_controller.send_command("lightOff")
-            #micro_controller.disconnect() Redundant for REST api
         
     except Exception:
         #Format stacktraces into a single line with | markers to indicate linebreaks

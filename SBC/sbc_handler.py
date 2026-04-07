@@ -26,7 +26,7 @@ class SBC:
         )
 
     # -------------------------------------------------------------------------
-    # Helpers
+    # Helpers (PRIVATE)
     # -------------------------------------------------------------------------
     @property
     def _base_url(self) -> str:
@@ -58,48 +58,58 @@ class SBC:
             self._last_ping_ok = False
             return {"success": False, "error": str(e)}
 
-    # -------------------------------------------------------------------------
-    # Device key/command mapping helpers
-    # -------------------------------------------------------------------------
     def _set_key_for(self, key: str) -> str:
         """Return the key name expected by device for POST /set.
-        Accepts either 'light.1' / 'light.2' / 'light.3' or 'led0' / 'led1' / 'led2',
+        Accepts either 'light.1' / 'light.2'
         and converts to the device's set-key format (ledN or wiper0).
         """
         if key.startswith("light."):
-            # light.1 -> led0, light.2 -> led1, light.3 -> led2
             try:
                 idx = int(key.split('.', 1)[1]) - 1
-                return f"led{idx}"
+                return f"light{idx}"
             except Exception:
                 return key
         if key == "wiper":
-            return "wiper0"
+            return "wiper"
         return key
 
     def _get_key_for(self, key: str) -> str:
         """Return the key name expected by device for POST /get.
-        Accepts either 'led0' / 'led1' / 'led2' or 'light.1' etc and returns
+        'light.1', 'light.2', 'light.3' or 'wiper' and returns
         the get-key format (light.N or wiper).
         """
-        if key.startswith("led"):
+        if key.startswith("light."):
             try:
-                idx = int(key[3:])
-                return f"light.{idx+1}"
+                idx = int(key.split('.', 1)[1]) - 1
+                return f"light{idx}"
             except Exception:
                 return key
-        if key.startswith("wiper"):
+        if key == "wiper":
             return "wiper"
         return key
 
     # -------------------------------------------------------------------------
-    # Public API
+    # Heartbeat functionality (PRIVATE)
+    # -------------------------------------------------------------------------
+    def _heartbeat_loop(self) -> None:
+        while not self._stop_event.is_set():
+            data = self._get("/ping")
+            if data and data.get("type") == "pong":
+                if not self._last_ping_ok:
+                    self.logger.debug("Ping successful")
+                self._last_ping_ok = True
+            else:
+                if self._last_ping_ok:
+                    self.logger.warning("Ping failed")
+                self._last_ping_ok = False
+            time.sleep(self.heartbeat_interval)
+
+    # -------------------------------------------------------------------------
+    # API (Public)
     # -------------------------------------------------------------------------
     def start_heartbeat(self) -> None:
-        """Start a background thread that periodically GETs /ping.
-
-        This replaces persistent connection/reconnect logic — we just
-        poll the device and update `self._last_ping_ok`.
+        """
+        Start a background thread that periodically polls connectivity to the device with a "ping -> pong" request
         """
         if self._heartbeat_thread and self._heartbeat_thread.is_alive():
             return
@@ -107,18 +117,17 @@ class SBC:
         self._heartbeat_thread = threading.Thread(target=self._heartbeat_loop, daemon=True)
         self._heartbeat_thread.start()
 
-    def disconnect(self) -> None:
-        # Stop the heartbeat loop (keeps interface name for compatibility)
+    def stop_heartbeat(self) -> None:
         self._stop_event.set()
         if self._heartbeat_thread:
             self._heartbeat_thread.join(timeout=1)
         self._last_ping_ok = False
 
-    def is_connected(self) -> bool:
+    def is_alive(self) -> bool:
         return self._last_ping_ok
 
     def set_values(self, keyvals: dict) -> Optional[dict]:
-        """POST /set — accepts keys like 'light.1' or 'led0'; converts to device format."""
+        """POST /set — accepts keys like 'light.1'; converts to device format."""
         # No persistent connection required; try sending regardless
         payload = {}
         for k, v in keyvals.items():
@@ -130,7 +139,7 @@ class SBC:
         return reply
 
     def get_values(self, keys: list) -> Optional[dict]:
-        """POST /get — accepts keys like 'led0' or 'light.1' and returns normalized data.
+        """POST /get — accepts keys like 'light.1' and returns normalized data.
 
         Returns: {'success': True, 'data': {<requested_key>: value, ...}}
         """
@@ -179,34 +188,6 @@ class SBC:
     def status(self) -> Optional[dict]:
         """GET /status  — returns ip, ssid, rssi"""
         return self._get("/status")
-
-    # -------------------------------------------------------------------------
-    # Heartbeat
-    # -------------------------------------------------------------------------
-    def _start_heartbeat(self) -> None:
-        # kept for compatibility; start via `start_heartbeat()` instead
-        self.start_heartbeat()
-
-    def _heartbeat_loop(self) -> None:
-        while not self._stop_event.is_set():
-            data = self._get("/ping")
-            if data and data.get("type") == "pong":
-                if not self._last_ping_ok:
-                    self.logger.debug("Ping successful")
-                self._last_ping_ok = True
-            else:
-                if self._last_ping_ok:
-                    self.logger.warning("Ping failed")
-                self._last_ping_ok = False
-            time.sleep(self.heartbeat_interval)
-
-    def _handle_disconnect(self) -> None:
-        # kept for compatibility with older callers; simply mark as not ok
-        if self._last_ping_ok:
-            self.logger.error("Disconnected")
-        self._last_ping_ok = False
-
-
 # -----------------------------------------------------------------------------
 # CLI
 # -----------------------------------------------------------------------------
@@ -215,7 +196,15 @@ if __name__ == "__main__":
     sbc = SBC(ip, port=80, verbose=True)
     try:
         print("Starting heartbeat...")
-        #sbc.start_heartbeat()
+        sbc.start_heartbeat()
+
+        print("Checking connection")
+        dots=0
+        while not sbc.is_alive():
+            dots = (dots + 1) % 6
+            print(f"SBC unreachable, waiting{'.' * dots}\r", end="")
+            time.sleep(1)
+
         print("Ready. Commands:")
         print("  set <key> <value>   — e.g.  set light.1 128  (or set led0 128)")
         print("  get <key>           — e.g.  get light.1  (or get led0)")
@@ -267,4 +256,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\nInterrupted")
     finally:
-        sbc.disconnect()
+        sbc.stop_heartbeat()
