@@ -70,11 +70,6 @@ class CameraControl:
         self.camera_mutex = threading.Lock()
         self.name = name
 
-	    # Converter
-        self.converter = pylon.ImageFormatConverter()
-        self.converter.OutputPixelFormat = pylon.PixelType_BGR8packed
-        self.converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
-
         # Setup config
         if config:
             self.load_config(config)
